@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #00171F;
+  --foreground: #FFFFFF;
 }
 
 @theme inline {
@@ -10,17 +10,127 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* ── Fondos ── */
+  --color-flota-background: #00171F;
+  --color-flota-surface: #002A36;
+  --color-flota-elevated: #003848;
+  --color-flota-hover: #004D62;
+  --color-flota-overlay: #001219;
+
+  /* ── Marca — azul ── */
+  --color-flota-blue: #00A7E1;
+  --color-flota-blue-dark: #0089BD;
+  --color-flota-blue-press: #006F9A;
+  --color-flota-blue-muted: #005F8A;
+  --color-flota-blue-dim: #00263A;
+  --color-flota-blue-dim-hover: #003048;
+
+  /* ── Tipografía ── */
+  --color-flota-textPrimary: #FFFFFF;
+  --color-flota-textSecondary: #8BBCC8;
+  --color-flota-textTertiary: #4D7A87;
+  --color-flota-textDisabled: #2E5A6A;
+  --color-flota-textInverse: #00171F;
+  --color-flota-textError: #F04444;
+  --color-flota-textSuccess: #22C97A;
+  --color-flota-textWarning: #F5C518;
+  --color-flota-textLink: #00A7E1;
+  --color-flota-textLinkHover: #0089BD;
+
+  /* ── Semánticos ── */
+  --color-flota-green: #22C97A;
+  --color-flota-green-dim: #0A2E1F;
+  --color-flota-green-dim-hover: #0E3D28;
+
+  --color-flota-yellow: #F5C518;
+  --color-flota-yellow-dim: #2A2200;
+  --color-flota-yellow-dim-hover: #372D00;
+
+  --color-flota-red: #F04444;
+  --color-flota-red-dim: #2D0A0A;
+  --color-flota-red-dim-hover: #3D1010;
+  --color-flota-red-press: #C43333;
+
+  --color-flota-orange: #FF8C42;
+  --color-flota-orange-dim: #2D1600;
+  --color-flota-orange-dim-hover: #3D1E00;
+
+  /* ── Bordes ── */
+  --color-flota-border-subtle: #0A2530;
+  --color-flota-border-default: #0E3344;
+  --color-flota-border-strong: #1A4D63;
+  --color-flota-border-focus: #00A7E1;
+  --color-flota-border-error: #F04444;
+  --color-flota-border-success: #22C97A;
+  --color-flota-border-warning: #F5C518;
+  --color-flota-border-disabled: #082030;
+
+  /* ── Botón primario ── */
+  --color-flota-btn-primary-bg: #00A7E1;
+  --color-flota-btn-primary-bg-hover: #0089BD;
+  --color-flota-btn-primary-bg-press: #006F9A;
+  --color-flota-btn-primary-bg-disabled: #002E3D;
+  --color-flota-btn-primary-text: #00171F;
+  --color-flota-btn-primary-text-disabled: #1A4D63;
+
+  /* ── Botón secundario ── */
+  --color-flota-btn-secondary-bg: transparent;
+  --color-flota-btn-secondary-bg-hover: #0A2D3D;
+  --color-flota-btn-secondary-bg-press: #0E3848;
+  --color-flota-btn-secondary-bg-disabled: transparent;
+  --color-flota-btn-secondary-border: #1A4D63;
+  --color-flota-btn-secondary-border-hover: #2A6B87;
+  --color-flota-btn-secondary-border-disabled: #082030;
+  --color-flota-btn-secondary-text: #FFFFFF;
+  --color-flota-btn-secondary-text-disabled: #2E5A6A;
+
+  /* ── Botón ghost ── */
+  --color-flota-btn-ghost-bg: transparent;
+  --color-flota-btn-ghost-bg-hover: #00263A;
+  --color-flota-btn-ghost-bg-press: #003048;
+  --color-flota-btn-ghost-bg-disabled: transparent;
+  --color-flota-btn-ghost-text: #00A7E1;
+  --color-flota-btn-ghost-text-disabled: #1A4D63;
+
+  /* ── Botón peligro ── */
+  --color-flota-btn-danger-bg: #2D0A0A;
+  --color-flota-btn-danger-bg-hover: #3D1010;
+  --color-flota-btn-danger-bg-press: #4D1515;
+  --color-flota-btn-danger-bg-disabled: #150505;
+  --color-flota-btn-danger-border: #6B2020;
+  --color-flota-btn-danger-border-hover: #8A2A2A;
+  --color-flota-btn-danger-border-disabled: #2A0808;
+  --color-flota-btn-danger-text: #F04444;
+  --color-flota-btn-danger-text-disabled: #5A1A1A;
+
+  /* ── Inputs ── */
+  --color-flota-input-bg: #003848;
+  --color-flota-input-bg-disabled: #001F2A;
+  --color-flota-input-border: #0E3344;
+  --color-flota-input-border-hover: #1A4D63;
+  --color-flota-input-border-focus: #00A7E1;
+  --color-flota-input-border-filled: #1A4D63;
+  --color-flota-input-border-error: #F04444;
+  --color-flota-input-border-success: #22C97A;
+  --color-flota-input-border-disabled: #082030;
+  --color-flota-input-placeholder: #4D7A87;
+  --color-flota-input-text: #FFFFFF;
+  --color-flota-input-text-disabled: #2E5A6A;
+
+  /* ── Focus rings ── */
+  --color-flota-ring-blue: #003D54;
+  --color-flota-ring-red: #3D0F0F;
+  --color-flota-ring-green: #0A2E1F;
+
+  /* ── Sombras ── */
+  --color-flota-shadow-sm: #000D12;
+  --color-flota-shadow-md: #000A0F;
+  --color-flota-shadow-lg: #000709;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
