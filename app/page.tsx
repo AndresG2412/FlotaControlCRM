@@ -1,4 +1,38 @@
+'use client';
+
+import { useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/libs/firebase/config';
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
+    const router = useRouter();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const tokenResult = await userCredential.user.getIdTokenResult();
+
+            if (tokenResult.claims.role === 'admin') {
+                router.push('/admin');
+            } else {
+                router.push('/driver');
+            }
+        } catch {
+            setError('Correo o contraseña incorrectos');
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return (
         <>
             <div className="h-screen flex items-center justify-center">
@@ -59,56 +93,39 @@ export default function Home() {
 
                 {/* ══ PANEL DERECHO ══ */}
                 <div className="w-1/2 h-full bg-flota-background flex items-center justify-center relative">
-
                     <div className="w-full max-w-3/4 px-6">
 
-                        {/* Header del form */}
-                        <div
-                            className="mb-10 anim-fade-up"
-                            style={{ animationDelay: '140ms' }}
-                        >
+                        <div className="mb-10 anim-fade-up" style={{ animationDelay: '140ms' }}>
                             <h1 className="font-principal tracking-wider text-[38px] leading-[1.1] text-flota-textPrimary">
                                 Ingresa al Sistema
                             </h1>
                         </div>
 
-                        {/* Formulario */}
-                        <form className="flex flex-col gap-5">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
-                            {/* Campo usuario */}
-                            <div
-                                className="flex flex-col gap-1.5 anim-fade-up"
-                                style={{ animationDelay: '220ms' }}
-                            >
-                                <label
-                                    htmlFor="username"
-                                    className="font-serif font-semibold text-md tracking-wider text-flota-textSecondary"
-                                >
-                                    Usuario
+                            {/* Campo email */}
+                            <div className="flex flex-col gap-1.5 anim-fade-up" style={{ animationDelay: '220ms' }}>
+                                <label htmlFor="email" className="font-serif font-semibold text-md tracking-wider text-flota-textSecondary">
+                                    Correo
                                 </label>
                                 <input
-                                    type="text"
-                                    id="username"
-                                    placeholder="Usuario"
-                                    autoComplete="username"
+                                    type="email"
+                                    id="email"
+                                    placeholder="correo@ejemplo.com"
+                                    autoComplete="email"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
                                     className="input-field w-full bg-flota-elevated border border-flota-border-default rounded-md
                                                px-4 py-3 text-sm text-flota-textPrimary
                                                placeholder:text-flota-textTertiary placeholder:font-light
-                                               outline-none
-                                               hover:border-flota-border-strong
+                                               outline-none hover:border-flota-border-strong
                                                focus:border-flota-border-focus focus:ring-2 focus:ring-flota-ring-blue"
                                 />
                             </div>
 
                             {/* Campo contraseña */}
-                            <div
-                                className="flex flex-col gap-1.5 anim-fade-up"
-                                style={{ animationDelay: '300ms' }}
-                            >
-                                <label
-                                    htmlFor="password"
-                                    className="font-serif font-semibold text-md tracking-wider text-flota-textSecondary"
-                                >
+                            <div className="flex flex-col gap-1.5 anim-fade-up" style={{ animationDelay: '300ms' }}>
+                                <label htmlFor="password" className="font-serif font-semibold text-md tracking-wider text-flota-textSecondary">
                                     Contraseña
                                 </label>
                                 <input
@@ -116,39 +133,42 @@ export default function Home() {
                                     id="password"
                                     placeholder="••••••••"
                                     autoComplete="current-password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
                                     className="input-field w-full bg-flota-elevated border border-flota-border-default rounded-md
                                                px-4 py-3 text-sm text-flota-textPrimary
                                                placeholder:text-flota-textTertiary
-                                               outline-none
-                                               hover:border-flota-border-strong
+                                               outline-none hover:border-flota-border-strong
                                                focus:border-flota-border-focus focus:ring-2 focus:ring-flota-ring-blue"
                                 />
                             </div>
 
-                            {/* Divisor */}
-                            <div
-                                className="h-px bg-flota-border-subtle anim-fade-in"
-                                style={{ animationDelay: '360ms' }}
-                            />
+                            {/* Error */}
+                            {error && (
+                                <p className="text-red-400 text-sm font-serif tracking-wide">
+                                    {error}
+                                </p>
+                            )}
+
+                            <div className="h-px bg-flota-border-subtle anim-fade-in" style={{ animationDelay: '360ms' }} />
 
                             {/* Botón */}
                             <button
                                 type="submit"
+                                disabled={loading}
                                 className="btn-submit bg-flota-btn-primary-bg hover:bg-flota-btn-primary-bg-hover
                                            active:bg-flota-btn-primary-bg-press
-                                           text-flota-textPrimary
-                                           font-semibold text-md tracking-wider font-serif
-                                           rounded-xl py-3 cursor-pointer
-                                           anim-fade-up w-3/4 mx-auto"
+                                           text-flota-textPrimary font-semibold text-md tracking-wider font-serif
+                                           rounded-xl py-3 cursor-pointer anim-fade-up w-3/4 mx-auto
+                                           disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{ animationDelay: '400ms' }}
                             >
-                                Entrar al Sistema
+                                {loading ? 'Verificando...' : 'Entrar al Sistema'}
                             </button>
 
                         </form>
                     </div>
                 </div>
-
             </div>
         </>
     );
