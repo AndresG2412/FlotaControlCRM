@@ -1,0 +1,112 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/libs/firebase/config';
+import { NavItem } from '@/app/constants/data';
+import { User, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+type NavbarProps = {
+    items: NavItem[];
+    role: 'admin' | 'driver';
+};
+
+export default function Navbar({ items, role }: NavbarProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const [email, setEmail] = useState('');
+
+    useEffect(() => {
+        const user = auth.currentUser;
+        if (user?.email) setEmail(user.email);
+    }, []);
+
+    async function handleLogout() {
+        await signOut(auth);
+        router.replace('/');
+    }
+
+    const roleLabel = role === 'admin' ? 'Administrador' : 'Conductor';
+
+    return (
+        <aside className="
+            w-1/4 min-w-[260px] max-w-[300px]
+            h-screen sticky top-0
+            bg-flota-surface border-r border-flota-border-default
+            flex flex-col
+            shrink-0
+        ">
+            {/* Logo */}
+            <div className="px-8 py-7 border-b border-flota-border-default">
+                <p className="text-2xl font-bold tracking-wider font-principal text-flota-textPrimary">
+                    Flota<span className="text-flota-textSecondary">Control</span>
+                </p>
+                <span className="text-xs font-serif text-flota-textTertiary tracking-widest uppercase mt-1 block">
+                    {roleLabel}
+                </span>
+            </div>
+
+            {/* Nav items */}
+            <nav className="flex-1 px-4 py-6 flex flex-col gap-1 overflow-y-auto">
+                {items.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`
+                                flex items-center gap-3 px-4 py-3 rounded-lg
+                                font-serif text-sm tracking-wide
+                                transition-all duration-150 group
+                                ${isActive
+                                    ? 'bg-flota-elevated text-flota-textPrimary border border-flota-border-strong'
+                                    : 'text-flota-textSecondary hover:bg-flota-elevated/60 hover:text-flota-textPrimary border border-transparent'
+                                }
+                            `}
+                        >
+                            <span className={`
+                                transition-colors
+                                ${isActive ? 'text-flota-textPrimary' : 'text-flota-textTertiary group-hover:text-flota-textSecondary'}
+                            `}>
+                                {item.icon}
+                            </span>
+                            {item.label}
+
+                            {/* indicador activo */}
+                            {isActive && (
+                                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-flota-textSecondary" />
+                            )}
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            {/* Footer con usuario y logout */}
+            <div className="px-4 py-5 border-t border-flota-border-default">
+                <div className="flex flex-col gap-3">
+                    <div className="px-4">
+                        <p className="text-xs text-flota-textTertiary font-serif tracking-wider truncate">
+                            {email}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="
+                            flex items-center gap-3 px-4 py-3 rounded-lg w-full
+                            font-serif text-sm tracking-wide
+                            text-flota-textSecondary
+                            hover:bg-flota-elevated/60 hover:text-flota-textPrimary
+                            border border-transparent hover:border-flota-border-default
+                            transition-all duration-150 cursor-pointer
+                        "
+                    >
+                        <User size={18} className="text-flota-textTertiary" />
+                        Cerrar sesión
+                    </button>
+                </div>
+            </div>
+        </aside>
+    );
+}
