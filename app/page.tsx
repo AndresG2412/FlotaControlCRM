@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/libs/firebase/config';
+import { auth } from '@/firebase/config';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
@@ -64,9 +64,9 @@ export default function Home() {
                             <div className="route-connector" />
 
                             {[
-                                { city: 'Florencia',    region: 'Caquetá',        label: 'Terminal principal', delay: '260ms' },
-                                { city: 'Pitalito',     region: 'Huila',           label: 'Parada intermedia', delay: '360ms' },
-                                { city: 'Cali',         region: 'Valle del Cauca', label: 'Parada final',      delay: '460ms' },
+                                { city: 'Florencia', region: 'Caquetá', label: 'Terminal principal', delay: '260ms' },
+                                { city: 'Pitalito', region: 'Huila', label: 'Parada intermedia', delay: '360ms' },
+                                { city: 'Cali', region: 'Valle del Cauca', label: 'Parada final', delay: '460ms' },
                             ].map(({ city, region, label, delay }, i) => (
                                 <div
                                     key={i}
