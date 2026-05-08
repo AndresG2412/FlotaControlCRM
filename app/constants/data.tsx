@@ -12,6 +12,7 @@ import {
     History,
     MessageSquare,
     ShieldCheck,
+    Bus,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -35,10 +36,18 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
 ];
 
 export const DRIVER_NAV_ITEMS: NavItem[] = [
-    { label: 'Inicio',               href: '/driver',               icon: <LayoutDashboard size={18} /> },
-    { label: 'Nueva Ruta',           href: '/driver/nueva_ruta',    icon: <Route           size={18} /> },
-    { label: 'Mantenimiento',        href: '/driver/mantenimiento', icon: <ClipboardList   size={18} /> }, // Reportar repuestos/taller (Módulo 1)
-    { label: 'Extras / Gastos',      href: '/driver/extras',        icon: <DollarSign      size={18} /> },
-    { label: 'Avisos',               href: '/driver/avisos',        icon: <MessageSquare   size={18} /> }, // Mensajes del Admin (Módulo 5)
-    { label: 'Mis Reportes',         href: '/driver/historial',     icon: <History         size={18} /> }, // Ver si le aprobaron o devolvieron algo
+    { label: 'Inicio',               href: '/driver',               icon: <LayoutDashboard   size={18} /> },
+    { label: 'Nuevo Viaje',          href: '/driver/ruta',          icon: <Route             size={18} /> },
+    { label: 'Mantenimientos',       href: '/driver/mantenimiento', icon: <ClipboardList     size={18} /> },
+    { label: 'Datos Generales',      href: '/driver/vehiculo',      icon: <Bus               size={18} /> },
+    // { label: 'Extras / Gastos',      href: '/driver/extras',        icon: <DollarSign      size={18} /> },
+    // { label: 'Avisos',               href: '/driver/avisos',        icon: <MessageSquare   size={18} /> }, // Mensajes del Admin (Módulo 5)
+    // { label: 'Mis Reportes',         href: '/driver/historial',     icon: <History         size={18} /> }, // Ver si le aprobaron o devolvieron algo
 ];
+
+export const TERMINALES: string[] = [
+    'Popayan',
+    'Pitalito',
+    'Cali',
+    'Florencia'
+]

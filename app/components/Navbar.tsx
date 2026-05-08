@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/libs/firebase/config';
+import { auth } from '@/firebase/config';
 import { NavItem } from '@/app/constants/data';
 import { User, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -34,7 +34,7 @@ export default function Navbar({ items, role }: NavbarProps) {
         <aside className="
             w-1/4 min-w-[260px] max-w-[300px]
             h-screen sticky top-0
-            bg-flota-surface border-r border-flota-border-default
+            bg-flota-surface border-r border-flota-border-focus
             flex flex-col
             shrink-0
         ">
