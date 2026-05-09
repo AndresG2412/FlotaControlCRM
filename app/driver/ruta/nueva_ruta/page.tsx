@@ -12,7 +12,7 @@ import Button from "@/app/components/Button";
 import Swal from "sweetalert2";
 import { createViaje, addStopToViaje } from "@/firebase/driver/viaje";
 
-export default function NuevaRuta() {
+export default function NuevaRutaPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     
@@ -179,11 +179,11 @@ export default function NuevaRuta() {
             <div className="flex-1 flex items-center justify-center p-4">
                 <Container>
                     <form
-                        className="flex flex-col gap-6 border border-flota-border-focus bg-flota-elevated rounded-2xl w-full max-w-lg mx-auto p-8 shadow-sm"
+                        className="flex flex-col gap-6 border border-flota-border-focus bg-flota-elevated rounded-2xl w-full max-w-lg mx-auto p-6 shadow-sm"
                         onSubmit={handleSubmit}
                     >
                         <div className="flex flex-col gap-1">
-                            <Tittle text={viajeId ? "Continuar Viaje" : "Generación de Viaje"} />
+                            <p className="text-4xl font-secundario tracking-wider text-center">{viajeId ? "Continuar Viaje" : "Generación de Viaje"}</p>
                             <p className="text-sm text-gray-400">
                                 {step === 1 ? "Paso 1/2: Ingresa la gasolina consumida" : (viajeId ? `Registro de Parada #${stopNumber}` : "Paso 2/2: Completa los datos del viaje")}
                             </p>

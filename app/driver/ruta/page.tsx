@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { getActiveViaje, finishViaje } from "@/firebase/driver/viaje";
 import Swal from "sweetalert2";
 
-export default function Ruta() {
+export default function RutaPage() {
   const router = useRouter();
   const [activeViaje, setActiveViaje] = useState<any>(null);
   const [loading, setLoading] = useState(true);
