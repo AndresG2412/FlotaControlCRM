@@ -12,6 +12,11 @@ export interface Buseta {
     Placa: string;
     Modelo: string;
     Numero_Buseta: string;
+    Motor: string;
+    Puestos: number;
+    Dueño: string;
+    Numero_Personal: number;
+    Aceite: string;
 }
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -51,4 +56,9 @@ export const BUSETA_DATOS: Buseta = {
     Placa: 'WFV990',
     Modelo: '2015',
     Numero_Buseta: '7900',
+    Motor: 'NKR',
+    Puestos: 18,
+    Dueño: 'Andres Camilo Gaviria Bolaños',
+    Numero_Personal: 3157870130,
+    Aceite: '20W50 Mobil',
 };
