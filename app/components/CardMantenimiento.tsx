@@ -43,7 +43,7 @@ export default function CardMantenimiento({
             </div>
             <div className="flex items-center gap-2 text-gray-300">
               <DollarSign size={16} className="text-green-400" />
-              <span className="font-medium">${precio.toFixed(2)}</span>
+              <span className="font-medium">{precio.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-400 border-t border-white/5 pt-2 mt-1">
               <Clock size={16} className="text-amber-400" />
