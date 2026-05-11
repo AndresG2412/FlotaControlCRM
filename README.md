@@ -12,4 +12,12 @@ Bibliotecas:
 - lucide react
 - firebase
 
+## Scripts de Administración
+
+El proyecto incluye scripts para tareas administrativas, como la creación de usuarios con rol de administrador:
+
+- `npm run create-admin`: Crea un nuevo usuario administrador en Firebase
+
+Para más información sobre cómo usar estos scripts, consulta [scripts/README.md](scripts/README.md).
+
 

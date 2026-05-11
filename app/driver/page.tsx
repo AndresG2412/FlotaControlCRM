@@ -13,7 +13,7 @@ export default function DriverPage() {
             <main className="flex-1 overflow-y-auto p-10">
 
                 <div className="mb-10">
-                    <h1 className="text-4xl font-principal font-bold tracking-wider text-flota-textPrimary mb-2">
+                    <h1 className="text-4xl font-secundario font-semibold tracking-wider text-flota-textPrimary mb-2">
                         Mi Ruta
                     </h1>
                     <p className="text-flota-textSecondary font-serif tracking-wide">
