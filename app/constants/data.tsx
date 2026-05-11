@@ -21,8 +21,9 @@ export interface Buseta {
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: 'Panel Principal',    href: '/admin',                icon: <LayoutDashboard   size={18} /> },
-    { label: 'Mantenimientos',       href: '/admin/mantenimientos', icon: <ClipboardList     size={18} /> },
-    { label: 'Datos Generales',      href: '/admin/informacion',      icon: <Bus               size={18} /> },
+    { label: 'Viajes',             href: '/admin/viajes',           icon: <Route             size={18} /> },
+    { label: 'Mantenimientos',     href: '/admin/mantenimientos', icon: <ClipboardList     size={18} /> },
+    { label: 'Datos Generales',    href: '/admin/informacion',      icon: <Bus               size={18} /> },
     // { label: 'Conductores',        href: '/admin/conductores',    icon: <Users             size={18} /> },
     // { label: 'Viajes',             href: '/admin/viajes',         icon: <MapPin            size={18} /> },
     // { label: 'Mantenimiento',      href: '/admin/mantenimiento',  icon: <BarChart3         size={18} /> }, // Cambio de "Repuestos" a Mantenimiento (Módulo 1)

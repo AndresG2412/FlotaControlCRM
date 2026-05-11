@@ -63,3 +63,30 @@ export const finishViaje = async (viajeId: string) => {
         return { success: false, error };
     }
 };
+
+export const getAllViajes = async () => {
+    try {
+        const q = query(
+            collection(db, "Viajes")
+        );
+        // Note: Ideally we'd orderBy("createdAt", "desc") but that requires a composite index if filtered.
+        // For now we just get them and sort them client-side or if no complex filters, server-side.
+        const querySnapshot = await getDocs(q);
+        const viajes: any[] = [];
+        querySnapshot.forEach((doc) => {
+            viajes.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Sort descending by createdAt
+        viajes.sort((a, b) => {
+            const timeA = a.createdAt?.toMillis() || 0;
+            const timeB = b.createdAt?.toMillis() || 0;
+            return timeB - timeA;
+        });
+        
+        return viajes;
+    } catch (error) {
+        console.error("Error getting all viajes:", error);
+        return [];
+    }
+};
