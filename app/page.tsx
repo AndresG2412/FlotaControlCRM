@@ -38,17 +38,17 @@ export default function Home() {
             <div className="h-screen flex items-center justify-center">
 
                 {/* ══ PANEL IZQUIERDO ══ */}
-                <div className="left-panel w-1/2 bg-flota-surface h-full p-10 flex flex-col items-center justify-center gap-10 border-r border-flota-textPrimary text-flota-textSecondary">
+                <div className="left-panel w-2/5 bg-flota-surface h-full p-10 flex flex-col items-center justify-center gap-10 border-r border-flota-textPrimary text-flota-textSecondary">
 
                     {/* Título */}
                     <div
                         className="text-center flex flex-col gap-y-3 w-full anim-fade-up"
                         style={{ animationDelay: '60ms' }}
                     >
-                        <p className="text-6xl font-bold tracking-wider font-principal text-flota-textPrimary">
+                        <p className="text-5xl font-bold tracking-wider font-principal text-flota-textPrimary">
                             Flota<span className="text-flota-textSecondary">Control</span>
                         </p>
-                        <p className="text-xl w-3/4 mx-auto tracking-wider text-center font-semibold font-serif text-flota-textSecondary">
+                        <p className="text-lg w-full mx-auto tracking-wider text-center font-semibold font-serif text-flota-textSecondary">
                             Tu herramienta para gestionar tu flota de vehículos de manera eficiente y profesional.
                         </p>
                     </div>
@@ -92,7 +92,7 @@ export default function Home() {
                 </div>
 
                 {/* ══ PANEL DERECHO ══ */}
-                <div className="w-1/2 h-full bg-flota-background flex items-center justify-center relative">
+                <div className="w-3/5 h-full bg-flota-background flex items-center justify-center relative">
                     <div className="w-full max-w-3/4 px-6">
 
                         <div className="mb-10 anim-fade-up" style={{ animationDelay: '140ms' }}>
