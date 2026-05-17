@@ -22,7 +22,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Cards */}
-                <div className="grid grid-cols-3 gap-6 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                     {[
                         { label: 'Vehículos activos', value: '0' },
                         { label: 'Conductores',        value: '0' },

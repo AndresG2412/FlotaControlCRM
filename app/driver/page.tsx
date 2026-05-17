@@ -2,6 +2,7 @@
 
 import Navbar from '@/app/components/Navbar';
 import { DRIVER_NAV_ITEMS } from '@/app/constants/data';
+import Container from '@/app/components/Container';
 
 export default function DriverPage() {
     return (
@@ -9,8 +10,8 @@ export default function DriverPage() {
 
             <Navbar items={DRIVER_NAV_ITEMS} role="driver" />
 
-            {/* Contenido principal */}
-            <main className="flex-1 overflow-y-auto p-10">
+            <Container>
+            <main className="flex-1 overflow-y-auto py-6">
 
                 <div className="mb-10">
                     <h1 className="text-4xl font-secundario font-semibold tracking-wider text-flota-textPrimary mb-2">
@@ -29,6 +30,7 @@ export default function DriverPage() {
                 </div>
 
             </main>
+        </Container>
         </div>
     );
 }

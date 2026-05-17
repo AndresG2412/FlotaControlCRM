@@ -30,7 +30,7 @@ export default function ViajesAdminPage() {
         <div className="flex h-screen">
             <Navbar items={ADMIN_NAV_ITEMS} role="admin" />
             <Container>
-                <div className="flex mx-auto flex-col gap-y-5 justify-start items-center w-full mb-6 p-6 h-full overflow-y-auto custom-scrollbar">
+                <div className="flex mx-auto flex-col gap-y-5 justify-start items-center w-full mb-6 py-6 h-full overflow-y-auto custom-scrollbar">
                     
                     <div className="w-full mt-4 mb-2">
                         <h1 className="text-4xl text-start font-secundario tracking-wider font-bold text-white mb-2">
