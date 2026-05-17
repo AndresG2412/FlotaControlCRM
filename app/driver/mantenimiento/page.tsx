@@ -58,12 +58,12 @@ export default function MantenimientoPage() {
         {/* Header similar a RutaPage */}
         <div className="flex mx-auto flex-col gap-y-5 justify-center items-center w-full mb-6">
           <div className="gap-x-5 w-full md:flex-row flex flex-col justify-center items-center mt-8">
-            <div className="w-2/3">
+            <div className="w-full md:w-2/3">
               <p className="text-4xl text-start font-secundario tracking-wider">
                 Mantenimientos {BUSETA_DATOS.Numero_Buseta}
               </p>
             </div>
-            <div className="w-1/3">
+            <div className="w-full md:w-1/3 md:mt-0 mt-8">
               <Button
                 text="Nuevo Mantenimiento"
                 onClick={() => router.push("/driver/mantenimiento/nuevo")}
@@ -90,7 +90,7 @@ export default function MantenimientoPage() {
                 No hay mantenimientos registrados {selectedCategory !== "TODOS" && `en la categoría "${selectedCategory}"`}.
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 {filtered.map((item) => (
                   <CardMantenimiento
                     key={item.id}

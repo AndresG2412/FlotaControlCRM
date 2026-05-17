@@ -124,8 +124,8 @@ export default function NuevoMantenimientoPage() {
     <div className="flex h-screen">
       <Navbar items={DRIVER_NAV_ITEMS} role="driver" />
 
-      <div className="flex-1 flex items-center justify-center p-4">
         <Container>
+      <div className="flex-1 flex items-center justify-center p-4">
           <form
             className="flex flex-col gap-4 border border-flota-border-focus bg-flota-elevated rounded-2xl w-full max-w-lg mx-auto p-6 shadow-sm"
             onSubmit={handleSubmit}
@@ -210,11 +210,11 @@ export default function NuevoMantenimientoPage() {
                   name="categoria"
                   value={formData.categoria}
                   onChange={handleInputChange}
-                  className="border border-flota-border-focus rounded-lg px-2 py-2 text-xs bg-black/20 outline-none focus:ring-1 focus:ring-flota-border-focus"
+                  className="border border-flota-border-strong rounded-lg px-2 py-2 text-xs bg-flota-surface text-flota-textPrimary outline-none focus:border-flota-border-focus focus:ring-1 focus:ring-flota-border-focus cursor-pointer"
                 >
-                  <option value="">Seleccionar...</option>
+                  <option value="" className="bg-flota-surface text-flota-textPrimary">Seleccionar...</option>
                   {MANTENIMIENTOS_TIPOS.map((tipo) => (
-                    <option key={tipo} value={tipo}>
+                    <option key={tipo} value={tipo} className="bg-flota-surface text-flota-textPrimary">
                       {tipo}
                     </option>
                   ))}
@@ -260,8 +260,8 @@ export default function NuevoMantenimientoPage() {
                 </div>
             </div>
           </form>
-        </Container>
       </div>
+        </Container>
     </div>
   );
 }

@@ -35,7 +35,7 @@ export default function CardMantenimiento({
       <div className="flex gap-4">
         {/* Contenido */}
         <div className="flex-1">
-          <h3 className="text-lg capitalize font-bold text-white">{nombreRepuesto}</h3>
+          <h3 className="text-lg capitalize font-bold text-white truncate">{nombreRepuesto}</h3>
           <div className="flex flex-col gap-2 text-sm mt-2">
             <div className="flex items-center gap-2 text-gray-300">
               <Tag size={16} className="text-blue-400" />

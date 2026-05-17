@@ -295,11 +295,11 @@ export default function NuevaRutaPage() {
                                             name="terminalSalida"
                                             value={formData.terminalSalida}
                                             onChange={handleInputChange}
-                                            className="border border-flota-border-focus rounded-lg px-2 py-2 text-xs bg-black/20 outline-none focus:ring-1 focus:ring-flota-border-focus"
+                                            className="border border-flota-border-strong rounded-lg px-2 py-2 text-xs bg-flota-surface text-flota-textPrimary outline-none focus:border-flota-border-focus focus:ring-1 focus:ring-flota-border-focus cursor-pointer"
                                         >
-                                            <option value="">Seleccionar...</option>
+                                            <option value="" className="bg-flota-surface text-flota-textPrimary">Seleccionar...</option>
                                             {TERMINALES.map((terminal) => (
-                                                <option key={terminal} value={terminal}>
+                                                <option key={terminal} value={terminal} className="bg-flota-surface text-flota-textPrimary">
                                                     {terminal}
                                                 </option>
                                             ))}

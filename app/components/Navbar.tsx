@@ -42,7 +42,7 @@ export default function Navbar({ items, role }: NavbarProps) {
             <button
                 onClick={() => setIsOpen(true)}
                 className={`
-                    lg:hidden fixed top-5 left-5 z-40 p-2.5 
+                    lg:hidden fixed top-10 right-5 z-40 p-2.5 
                     bg-flota-surface border border-flota-border-default 
                     rounded-xl shadow-sm text-flota-textPrimary
                     transition-all duration-300
@@ -64,12 +64,12 @@ export default function Navbar({ items, role }: NavbarProps) {
 
             {/* Sidebar / Navbar */}
             <aside className={`
-                fixed lg:sticky top-0 left-0 h-screen z-50
+                fixed lg:sticky top-0 right-0 lg:right-auto lg:left-0 h-screen z-50
                 w-[75%] sm:w-[50%] md:w-[40%] lg:w-1/4 lg:min-w-[260px] lg:max-w-[300px]
-                bg-flota-surface border-r border-flota-border-focus
+                bg-flota-surface border-l lg:border-l-0 lg:border-r border-flota-border-focus
                 flex flex-col shrink-0
                 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
-                ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
             `}>
                 {/* Logo */}
                 <div className="px-8 py-7 border-b border-flota-border-default flex justify-between items-center">

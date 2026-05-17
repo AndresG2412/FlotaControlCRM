@@ -70,7 +70,7 @@ export default function RutaPage() {
       <Container>
         {/* Header fijo arriba */}
         {!loading && !activeViaje && (
-            <div className="flex w-2/4 mx-auto flex-col gap-y-5 justify-center items-center flex-1 h-screen mb-6">
+            <div className="flex md:w-2/4 mx-auto flex-col gap-y-5 justify-center items-center flex-1 h-screen mb-6">
             <div className="border rounded-2xl p-8 flex flex-col gap-y-8 justify-center items-center w-full bg-flota-elevated border-flota-border-focus">
               <p className="text-4xl font-secundario tracking-wider text-center">Gestion de Rutas</p>
               <Button text="Nueva Ruta" onClick={() => { router.push("/driver/ruta/nueva_ruta") }} icon={<Plus />} />
