@@ -132,6 +132,19 @@ export default function RutaPage() {
     }
   };
 
+  const calculateTotalGasolina = (v: any) => {
+    if (!v) return 0;
+    let total = 0;
+    for (let i = 1; i <= (v.paradasCount || 0); i++) {
+      const gas = parseFloat(v[`Gasolina ${i}`]) || 0;
+      total += gas;
+    }
+    if (total === 0 && v.Gasolina) {
+      total = parseFloat(v.Gasolina) || 0;
+    }
+    return total;
+  };
+
   return (
     <div className="flex h-screen">
       <Navbar items={DRIVER_NAV_ITEMS} role={"driver"} />
@@ -171,8 +184,8 @@ export default function RutaPage() {
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-black/20 p-3 rounded-lg border border-flota-border-focus">
-                    <p className="text-xs text-gray-400 mb-1">Gasolina Inicial</p>
-                    <p className="text-sm font-semibold text-white">${activeViaje.Gasolina}</p>
+                    <p className="text-xs text-gray-400 mb-1">Gasolina Total</p>
+                    <p className="text-sm font-semibold text-white">${calculateTotalGasolina(activeViaje).toLocaleString()}</p>
                   </div>
                   <div className="bg-black/20 p-3 rounded-lg border border-flota-border-focus">
                     <p className="text-xs text-gray-400 mb-1">Paradas Registradas</p>

@@ -12,12 +12,14 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
     // Extract stops into an array
     const paradas = [];
     let totalNeto = parseFloat(viaje.dineroExtra) || 0;
+    let totalGasolina = 0;
 
     for (let i = 1; i <= viaje.paradasCount; i++) {
         // We only add it if at least the terminal exists for that index
         if (viaje[`Terminal ${i}`]) {
             const neto = parseFloat(viaje[`Neto ${i}`]) || 0;
             totalNeto += neto;
+            totalGasolina += parseFloat(viaje[`Gasolina ${i}`]) || 0;
             paradas.push({
                 index: i,
                 terminal: viaje[`Terminal ${i}`],
@@ -29,6 +31,29 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
             });
         }
     }
+
+    if (totalGasolina === 0 && viaje.Gasolina) {
+        totalGasolina = parseFloat(viaje.Gasolina) || 0;
+    }
+
+    // Closing details calculations for finalized viajes
+    const PEAJES = 35000;
+    const CONDUCES = 250000;
+    const VIATICOS = 140000;
+    const PAGOS = 350000;
+    const LAVADAS = 50000;
+    const PARQUEOS = 20000;
+    const GASTOS_FIJOS_SUM = PEAJES + CONDUCES + VIATICOS + PAGOS + LAVADAS + PARQUEOS; // 845,000
+
+    const ligas = parseFloat(viaje.ligas) || 0;
+    const polillaFinal = parseFloat(viaje.polillaFinal) || 0;
+
+    let totalExtrasFinales = 0;
+    if (viaje.extrasFinal && Array.isArray(viaje.extrasFinal)) {
+        totalExtrasFinales = viaje.extrasFinal.reduce((sum: number, ext: any) => sum + (parseFloat(ext.valor) || 0), 0);
+    }
+
+    const liquidacionFinal = totalNeto - GASTOS_FIJOS_SUM - ligas - totalExtrasFinales + polillaFinal;
 
     // The total number of pages is the number of stops + 1 for the summary page
     const totalPages = paradas.length + 1;
@@ -136,15 +161,30 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                                 </p>
                             )}
 
-                            <div className="w-full bg-black/30 p-3 rounded-2xl border border-white/5 mb-4">
-                                <p className="text-sm text-gray-400 mb-2">Total Ingresos Netos</p>
-                                <p className="text-4xl font-bold text-green-400">${totalNeto.toLocaleString()}</p>
-                            </div>
+                            {viaje.estado === "finalizado" ? (
+                                <div className="w-full grid grid-cols-2 gap-3 mb-4">
+                                    <div className="bg-black/30 p-3 rounded-2xl border border-white/5">
+                                        <p className="text-[10px] text-gray-400 mb-1 uppercase tracking-wider">Ingresos Netos</p>
+                                        <p className="text-xl font-bold text-green-400">${totalNeto.toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-black/30 p-3 rounded-2xl border border-flota-blue/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                                        <p className="text-[10px] text-gray-400 mb-1 uppercase tracking-wider">Liquidación Final</p>
+                                        <p className={`text-xl font-bold ${liquidacionFinal >= 0 ? 'text-flota-blue' : 'text-red-400'}`}>
+                                            ${liquidacionFinal.toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="w-full bg-black/30 p-3 rounded-2xl border border-white/5 mb-4">
+                                    <p className="text-sm text-gray-400 mb-2">Total Ingresos Netos</p>
+                                    <p className="text-4xl font-bold text-green-400">${totalNeto.toLocaleString()}</p>
+                                </div>
+                            )}
 
                             <div className="w-full grid grid-cols-2 gap-3">
                                 <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                    <p className="text-xs text-gray-500 mb-1">Gasolina Inicial</p>
-                                    <p className="text-sm text-white font-medium">${viaje.Gasolina}</p>
+                                    <p className="text-xs text-gray-500 mb-1">Gasolina Total</p>
+                                    <p className="text-sm text-white font-medium">${totalGasolina.toLocaleString()}</p>
                                 </div>
                                 <div className="bg-black/20 p-3 rounded-xl border border-white/5">
                                     <p className="text-xs text-gray-500 mb-1">Total Paradas</p>
@@ -156,26 +196,63 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                                         <p className="text-sm text-green-400 font-medium">+ ${viaje.dineroExtra}</p>
                                     </div>
                                 ) : null}
+
+                                {viaje.estado === "finalizado" && (
+                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2 text-left">
+                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Gastos Fijos Descontados</p>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
+                                            <div className="flex justify-between">
+                                                <span>Peajes:</span>
+                                                <span className="text-white font-medium">$35,000</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Conduces:</span>
+                                                <span className="text-white font-medium">$250,000</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Viáticos:</span>
+                                                <span className="text-white font-medium">$140,000</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Pagos:</span>
+                                                <span className="text-white font-medium">$350,000</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Lavadas:</span>
+                                                <span className="text-white font-medium">$50,000</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Parqueos:</span>
+                                                <span className="text-white font-medium">$20,000</span>
+                                            </div>
+                                            <div className="col-span-2 border-t border-white/5 mt-1.5 pt-1.5 flex justify-between font-bold text-red-400">
+                                                <span>Total Gastos Fijos:</span>
+                                                <span>-$845,000</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {viaje.ligas !== undefined && viaje.ligas !== null && (
                                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                        <p className="text-xs text-gray-500 mb-1">Ligas</p>
-                                        <p className="text-sm text-white font-medium">${viaje.ligas.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-500 mb-1">Ligas (Descontado)</p>
+                                        <p className="text-sm text-red-400 font-medium">-${viaje.ligas.toLocaleString()}</p>
                                     </div>
                                 )}
                                 {viaje.polillaFinal !== undefined && viaje.polillaFinal !== null && (
                                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                        <p className="text-xs text-gray-500 mb-1">Polilla Final</p>
-                                        <p className="text-sm text-white font-medium">${viaje.polillaFinal.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-500 mb-1">Polilla (Sumado)</p>
+                                        <p className="text-sm text-green-400 font-medium">+${viaje.polillaFinal.toLocaleString()}</p>
                                     </div>
                                 )}
                                 {viaje.extrasFinal && viaje.extrasFinal.length > 0 && (
                                     <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2 text-left">
-                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Otros Extras de Cierre</p>
+                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Otros Extras (Descontado)</p>
                                         <div className="space-y-1.5 max-h-[100px] overflow-y-auto pr-1">
                                             {viaje.extrasFinal.map((ext: any, idx: number) => (
                                                 <div key={idx} className="flex justify-between text-xs text-white">
                                                     <span className="text-gray-400">{ext.nombre}</span>
-                                                    <span className="text-green-400 font-medium">${ext.valor.toLocaleString()}</span>
+                                                    <span className="text-red-400 font-medium">-${ext.valor.toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>

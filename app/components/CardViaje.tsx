@@ -11,6 +11,20 @@ export default function CardViaje({ viaje, onClick }: CardViajeProps) {
     // Format date (handle Firestore Timestamp)
     const dateStr = viaje.createdAt ? new Date(viaje.createdAt.toMillis ? viaje.createdAt.toMillis() : viaje.createdAt).toLocaleDateString() : 'N/A';
 
+    const calculateTotalGasolina = (v: any) => {
+        let total = 0;
+        for (let i = 1; i <= (v.paradasCount || 0); i++) {
+            const gas = parseFloat(v[`Gasolina ${i}`]) || 0;
+            total += gas;
+        }
+        if (total === 0 && v.Gasolina) {
+            total = parseFloat(v.Gasolina) || 0;
+        }
+        return total;
+    };
+
+    const totalGasolina = calculateTotalGasolina(viaje);
+
     return (
         <div 
             onClick={onClick}
@@ -49,7 +63,7 @@ export default function CardViaje({ viaje, onClick }: CardViajeProps) {
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-300">
                     <Droplet size={16} className="text-amber-500" />
-                    <span>Gasolina: <span className="font-semibold text-white">${viaje.Gasolina}</span></span>
+                    <span>Gasolina Total: <span className="font-semibold text-white">${totalGasolina.toLocaleString()}</span></span>
                 </div>
                 {viaje.dineroExtra ? (
                     <div className="flex items-center gap-3 text-sm text-gray-300">
