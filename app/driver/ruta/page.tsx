@@ -9,8 +9,11 @@ import Container from "@/app/components/Container";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getActiveViaje, finishViaje, updateViaje } from "@/firebase/driver/viaje";
+import { addMantenimiento } from "@/firebase/driver/mantenimiento";
 import Swal from "sweetalert2";
 import ModalFinalizar from "@/app/components/ModalFinalizar";
+import ModalMantenimientoViaje from "@/app/components/ModalMantenimientoViaje";
+import { Wrench } from "lucide-react";
 
 export default function RutaPage() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function RutaPage() {
   const [loading, setLoading] = useState(true);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizarLoading, setFinalizarLoading] = useState(false);
+  const [showMantenimientoModal, setShowMantenimientoModal] = useState(false);
 
   const fetchActiveViaje = async () => {
     setLoading(true);
@@ -132,6 +136,60 @@ export default function RutaPage() {
     }
   };
 
+  const handleConfirmMantenimiento = async (data: { nombreRepuesto: string, categoria: string, precio: number }) => {
+    if (!activeViaje) return;
+
+    try {
+      const docId = await addMantenimiento({
+        nombreRepuesto: data.nombreRepuesto,
+        categoria: data.categoria,
+        precio: data.precio,
+        viajeId: activeViaje.id
+      });
+
+      const newMantenimientoItem = {
+        id: docId,
+        nombre: data.nombreRepuesto,
+        categoria: data.categoria,
+        precio: data.precio,
+        fecha: new Date().toISOString()
+      };
+
+      const currentMantenimientos = activeViaje.mantenimientos || [];
+      const currentGasto = parseFloat(activeViaje.gastoMantenimientos) || 0;
+
+      const res = await updateViaje(activeViaje.id, {
+        mantenimientos: [...currentMantenimientos, newMantenimientoItem],
+        gastoMantenimientos: currentGasto + data.precio
+      });
+
+      if (res.success) {
+        Swal.fire({
+          title: "¡Mantenimiento Registrado!",
+          text: `Se registró "${data.nombreRepuesto}" por $${data.precio.toLocaleString()} y se descontó del viaje.`,
+          icon: "success",
+          background: "#000000",
+          color: "#ffffff",
+          confirmButtonColor: "#3b82f6",
+        });
+        setShowMantenimientoModal(false);
+        fetchActiveViaje();
+      } else {
+        throw new Error("Failed to update active viaje");
+      }
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo registrar el mantenimiento en el viaje.",
+        icon: "error",
+        background: "#000000",
+        color: "#ffffff",
+        confirmButtonColor: "#ef4444",
+      });
+    }
+  };
+
   const calculateTotalGasolina = (v: any) => {
     if (!v) return 0;
     let total = 0;
@@ -205,16 +263,18 @@ export default function RutaPage() {
                   icon={<ArrowRight size={16} />}
                 />
                 <div className="w-full flex gap-3 mt-4">
-                  {/* <button
-                    onClick={handleAgregar}
-                    className="flex w-1/2 justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white border border-blue-600 rounded-lg hover:bg-blue-800 hover:text-white transition-colors text-sm font-medium"
-                  >
-                    <Plus size={16} />
-                    Agregar
-                  </button> */}
                   <button
+                    type="button"
+                    onClick={() => setShowMantenimientoModal(true)}
+                    className="flex w-1/2 justify-center items-center gap-2 px-4 py-2 bg-blue-600/90 text-white border border-blue-600 rounded-xl hover:bg-blue-800 transition-colors text-sm font-medium outline-none"
+                  >
+                    <Wrench size={16} />
+                    Mantenimiento
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleFinalizar}
-                    className="flex w-full justify-center items-center gap-2 px-4 py-2 bg-red-600 text-white border border-red-600 rounded-lg hover:bg-red-800 hover:text-white transition-colors text-sm font-medium"
+                    className="flex w-1/2 justify-center items-center gap-2 px-4 py-2 bg-red-600/90 text-white border border-red-600 rounded-xl hover:bg-red-800 transition-colors text-sm font-medium outline-none"
                   >
                     <Check size={16} />
                     Finalizar
@@ -236,6 +296,14 @@ export default function RutaPage() {
           onConfirm={handleConfirmFinalizar}
           loading={finalizarLoading}
         />
+
+        {/* Modal para registrar mantenimiento */}
+        {showMantenimientoModal && (
+          <ModalMantenimientoViaje
+            onClose={() => setShowMantenimientoModal(false)}
+            onConfirm={handleConfirmMantenimiento}
+          />
+        )}
       </Container>
     </div>
   )

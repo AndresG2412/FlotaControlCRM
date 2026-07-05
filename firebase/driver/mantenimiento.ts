@@ -7,6 +7,7 @@ export interface MantenimientoData {
   categoria: string;
   precio: number;
   photoUrl?: string | null;
+  viajeId?: string;
 }
 
 export interface MantenimientoWithId extends MantenimientoData {

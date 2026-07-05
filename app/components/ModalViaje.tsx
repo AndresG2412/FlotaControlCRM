@@ -13,6 +13,7 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
     const [showGastosFijos, setShowGastosFijos] = useState(false);
     const [showOtrosExtras, setShowOtrosExtras] = useState(false);
     const [showLigasPolilla, setShowLigasPolilla] = useState(false);
+    const [showMantenimientos, setShowMantenimientos] = useState(false);
 
     // Extract stops into an array
     const paradas = [];
@@ -58,7 +59,11 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
         totalExtrasFinales = viaje.extrasFinal.reduce((sum: number, ext: any) => sum + (parseFloat(ext.valor) || 0), 0);
     }
 
-    const liquidacionFinal = totalNeto - GASTOS_FIJOS_SUM - ligas - totalExtrasFinales + polillaFinal;
+    const totalMantenimientos = viaje.mantenimientos
+        ? viaje.mantenimientos.reduce((sum: number, m: any) => sum + (parseFloat(m.precio) || 0), 0)
+        : 0;
+
+    const liquidacionFinal = totalNeto - GASTOS_FIJOS_SUM - ligas - totalExtrasFinales + polillaFinal - totalMantenimientos;
 
     // The total number of pages is the number of stops + 1 for the summary page
     const totalPages = paradas.length + 1;
@@ -292,6 +297,33 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                                                              <div key={idx} className="flex justify-between text-xs text-white">
                                                                  <span className="text-gray-400">{ext.nombre}</span>
                                                                  <span className="text-red-400 font-medium">-${ext.valor.toLocaleString()}</span>
+                                                             </div>
+                                                         ))}
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         )}
+
+                                         {/* Acordeón de Mantenimientos en Ruta */}
+                                         {viaje.mantenimientos && viaje.mantenimientos.length > 0 && (
+                                             <div className="flex flex-col w-full">
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setShowMantenimientos(!showMantenimientos)}
+                                                     className="w-full flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5 text-xs text-gray-400 font-bold uppercase tracking-wider hover:bg-white/5 transition-all outline-none"
+                                                 >
+                                                     <span className="flex items-center gap-1.5">
+                                                         {showMantenimientos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                         Mantenimientos en Ruta (Descontado)
+                                                     </span>
+                                                     <span className="text-red-400 font-semibold">-${totalMantenimientos.toLocaleString()}</span>
+                                                 </button>
+                                                 {showMantenimientos && (
+                                                     <div className="bg-black/10 p-3.5 rounded-b-xl border border-t-0 border-white/5 -mt-1 pt-4 text-xs text-gray-400 space-y-2 max-h-[120px] overflow-y-auto pr-1 animate-fade-in">
+                                                         {viaje.mantenimientos.map((m: any, idx: number) => (
+                                                             <div key={idx} className="flex justify-between text-xs text-white">
+                                                                 <span className="text-gray-400">{m.nombre} ({m.categoria})</span>
+                                                                 <span className="text-red-400 font-medium">-${parseFloat(m.precio).toLocaleString()}</span>
                                                              </div>
                                                          ))}
                                                      </div>
