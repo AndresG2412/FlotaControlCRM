@@ -50,16 +50,31 @@ export const addStopToViaje = async (viajeId: string, stopData: any, newCount: n
     }
 };
 
-export const finishViaje = async (viajeId: string) => {
+export const finishViaje = async (viajeId: string, additionalData: any = {}) => {
     try {
         const docRef = doc(db, "Viajes", viajeId);
         await updateDoc(docRef, {
             estado: "finalizado",
-            finishedAt: serverTimestamp()
+            finishedAt: serverTimestamp(),
+            ...additionalData
         });
         return { success: true };
     } catch (error) {
         console.error("Error finishing viaje:", error);
+        return { success: false, error };
+    }
+};
+
+export const updateViaje = async (viajeId: string, data: any) => {
+    try {
+        const docRef = doc(db, "Viajes", viajeId);
+        await updateDoc(docRef, {
+            ...data,
+            updatedAt: serverTimestamp()
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating viaje:", error);
         return { success: false, error };
     }
 };

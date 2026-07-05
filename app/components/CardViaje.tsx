@@ -1,4 +1,4 @@
-import { Calendar, Droplet, MapPin, Navigation } from "lucide-react";
+import { Calendar, Droplet, MapPin, Navigation, DollarSign } from "lucide-react";
 
 interface CardViajeProps {
     viaje: any;
@@ -51,6 +51,12 @@ export default function CardViaje({ viaje, onClick }: CardViajeProps) {
                     <Droplet size={16} className="text-amber-500" />
                     <span>Gasolina: <span className="font-semibold text-white">${viaje.Gasolina}</span></span>
                 </div>
+                {viaje.dineroExtra ? (
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                        <DollarSign size={16} className="text-green-500" />
+                        <span>Dinero Extra: <span className="font-semibold text-white">${viaje.dineroExtra}</span></span>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

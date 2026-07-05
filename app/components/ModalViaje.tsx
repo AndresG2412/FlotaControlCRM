@@ -1,4 +1,4 @@
-import { X, ChevronLeft, ChevronRight, DollarSign, Users, Clock, MapPin, CheckCircle, Navigation } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, DollarSign, Users, Clock, MapPin, CheckCircle, Navigation, Fuel } from "lucide-react";
 import { useState } from "react";
 
 interface ModalViajeProps {
@@ -11,7 +11,7 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
 
     // Extract stops into an array
     const paradas = [];
-    let totalNeto = 0;
+    let totalNeto = parseFloat(viaje.dineroExtra) || 0;
 
     for (let i = 1; i <= viaje.paradasCount; i++) {
         // We only add it if at least the terminal exists for that index
@@ -23,6 +23,8 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                 terminal: viaje[`Terminal ${i}`],
                 hora: viaje[`Hora ${i}`],
                 pasajeros: viaje[`Pasajeros ${i}`],
+                gasolina: viaje[`Gasolina ${i}`],
+                polilla: viaje[`Polilla ${i}`],
                 neto: neto
             });
         }
@@ -69,21 +71,45 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                             </div>
 
                             <div className="space-y-4">
-                                <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
-                                    <div className="flex items-center gap-3 text-gray-400">
-                                        <Clock size={18} />
-                                        <span>Hora Registrada</span>
+                                {currentStop.hora && (
+                                    <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-3 text-gray-400">
+                                            <Clock size={18} />
+                                            <span>Hora Registrada</span>
+                                        </div>
+                                        <span className="text-white font-medium">{currentStop.hora}</span>
                                     </div>
-                                    <span className="text-white font-medium">{currentStop.hora}</span>
-                                </div>
+                                )}
 
-                                <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
-                                    <div className="flex items-center gap-3 text-gray-400">
-                                        <Users size={18} />
-                                        <span>Pasajeros</span>
+                                {currentStop.pasajeros !== undefined && currentStop.pasajeros !== null && (
+                                    <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-3 text-gray-400">
+                                            <Users size={18} />
+                                            <span>Pasajeros</span>
+                                        </div>
+                                        <span className="text-white font-medium">{currentStop.pasajeros}</span>
                                     </div>
-                                    <span className="text-white font-medium">{currentStop.pasajeros}</span>
-                                </div>
+                                )}
+
+                                {currentStop.gasolina !== undefined && currentStop.gasolina !== null && (
+                                    <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-3 text-gray-400">
+                                            <Fuel size={18} />
+                                            <span>Gasolina</span>
+                                        </div>
+                                        <span className="text-white font-medium">${currentStop.gasolina.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {currentStop.polilla !== undefined && currentStop.polilla !== null && (
+                                    <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-3 text-gray-400">
+                                            <DollarSign size={18} className="text-red-400" />
+                                            <span>Polilla</span>
+                                        </div>
+                                        <span className="text-red-400 font-medium">${currentStop.polilla.toLocaleString()}</span>
+                                    </div>
+                                )}
 
                                 <div className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
                                     <div className="flex items-center gap-3 text-gray-400">
@@ -124,6 +150,37 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                                     <p className="text-xs text-gray-500 mb-1">Total Paradas</p>
                                     <p className="text-sm text-white font-medium">{paradas.length}</p>
                                 </div>
+                                {viaje.dineroExtra ? (
+                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2">
+                                        <p className="text-xs text-gray-500 mb-1">Dinero Extra Agregado</p>
+                                        <p className="text-sm text-green-400 font-medium">+ ${viaje.dineroExtra}</p>
+                                    </div>
+                                ) : null}
+                                {viaje.ligas !== undefined && viaje.ligas !== null && (
+                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                        <p className="text-xs text-gray-500 mb-1">Ligas</p>
+                                        <p className="text-sm text-white font-medium">${viaje.ligas.toLocaleString()}</p>
+                                    </div>
+                                )}
+                                {viaje.polillaFinal !== undefined && viaje.polillaFinal !== null && (
+                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                        <p className="text-xs text-gray-500 mb-1">Polilla Final</p>
+                                        <p className="text-sm text-white font-medium">${viaje.polillaFinal.toLocaleString()}</p>
+                                    </div>
+                                )}
+                                {viaje.extrasFinal && viaje.extrasFinal.length > 0 && (
+                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2 text-left">
+                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Otros Extras de Cierre</p>
+                                        <div className="space-y-1.5 max-h-[100px] overflow-y-auto pr-1">
+                                            {viaje.extrasFinal.map((ext: any, idx: number) => (
+                                                <div key={idx} className="flex justify-between text-xs text-white">
+                                                    <span className="text-gray-400">{ext.nombre}</span>
+                                                    <span className="text-green-400 font-medium">${ext.valor.toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

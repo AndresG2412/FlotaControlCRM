@@ -44,7 +44,7 @@ export const DRIVER_NAV_ITEMS: NavItem[] = [
 ];
 
 export const TERMINALES: string[] = [
-    'Popayan', 'Pitalito', 'Cali', 'Florencia', 'Neiva', 'Puerto Rico',
+    'Popayan', 'Pitalito', 'Cali', 'Florencia'
 ];
 
 export const MANTENIMIENTOS_TIPOS: string[] = [
