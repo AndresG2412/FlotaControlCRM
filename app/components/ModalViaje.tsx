@@ -1,4 +1,4 @@
-import { X, ChevronLeft, ChevronRight, DollarSign, Users, Clock, MapPin, CheckCircle, Navigation, Fuel } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, DollarSign, Users, Clock, MapPin, CheckCircle, Navigation, Fuel, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface ModalViajeProps {
@@ -8,6 +8,11 @@ interface ModalViajeProps {
 
 export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
     const [currentPage, setCurrentPage] = useState(1);
+    
+    // Accordion toggle states
+    const [showGastosFijos, setShowGastosFijos] = useState(false);
+    const [showOtrosExtras, setShowOtrosExtras] = useState(false);
+    const [showLigasPolilla, setShowLigasPolilla] = useState(false);
 
     // Extract stops into an array
     const paradas = [];
@@ -181,85 +186,121 @@ export default function ModalViaje({ viaje, onClose }: ModalViajeProps) {
                                 </div>
                             )}
 
-                            <div className="w-full grid grid-cols-2 gap-3">
-                                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                    <p className="text-xs text-gray-500 mb-1">Gasolina Total</p>
-                                    <p className="text-sm text-white font-medium">${totalGasolina.toLocaleString()}</p>
-                                </div>
-                                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                    <p className="text-xs text-gray-500 mb-1">Total Paradas</p>
-                                    <p className="text-sm text-white font-medium">{paradas.length}</p>
-                                </div>
-                                {viaje.dineroExtra ? (
-                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2">
-                                        <p className="text-xs text-gray-500 mb-1">Dinero Extra Agregado</p>
-                                        <p className="text-sm text-green-400 font-medium">+ ${viaje.dineroExtra}</p>
-                                    </div>
-                                ) : null}
-
-                                {viaje.estado === "finalizado" && (
-                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2 text-left">
-                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Gastos Fijos Descontados</p>
-                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
-                                            <div className="flex justify-between">
-                                                <span>Peajes:</span>
-                                                <span className="text-white font-medium">$35,000</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Conduces:</span>
-                                                <span className="text-white font-medium">$250,000</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Viáticos:</span>
-                                                <span className="text-white font-medium">$140,000</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Pagos:</span>
-                                                <span className="text-white font-medium">$350,000</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Lavadas:</span>
-                                                <span className="text-white font-medium">$50,000</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Parqueos:</span>
-                                                <span className="text-white font-medium">$20,000</span>
-                                            </div>
-                                            <div className="col-span-2 border-t border-white/5 mt-1.5 pt-1.5 flex justify-between font-bold text-red-400">
-                                                <span>Total Gastos Fijos:</span>
-                                                <span>-$845,000</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {viaje.ligas !== undefined && viaje.ligas !== null && (
-                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                        <p className="text-xs text-gray-500 mb-1">Ligas (Descontado)</p>
-                                        <p className="text-sm text-red-400 font-medium">-${viaje.ligas.toLocaleString()}</p>
-                                    </div>
-                                )}
-                                {viaje.polillaFinal !== undefined && viaje.polillaFinal !== null && (
-                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                                        <p className="text-xs text-gray-500 mb-1">Polilla (Sumado)</p>
-                                        <p className="text-sm text-green-400 font-medium">+${viaje.polillaFinal.toLocaleString()}</p>
-                                    </div>
-                                )}
-                                {viaje.extrasFinal && viaje.extrasFinal.length > 0 && (
-                                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 col-span-2 text-left">
-                                        <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Otros Extras (Descontado)</p>
-                                        <div className="space-y-1.5 max-h-[100px] overflow-y-auto pr-1">
-                                            {viaje.extrasFinal.map((ext: any, idx: number) => (
-                                                <div key={idx} className="flex justify-between text-xs text-white">
-                                                    <span className="text-gray-400">{ext.nombre}</span>
-                                                    <span className="text-red-400 font-medium">-${ext.valor.toLocaleString()}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                             <div className="w-full flex flex-col gap-3">
+                                 <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                     <p className="text-xs text-gray-500 mb-1">Gasolina Total</p>
+                                     <p className="text-sm text-white font-medium">${totalGasolina.toLocaleString()}</p>
+                                 </div>
+                                 {viaje.dineroExtra ? (
+                                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                         <p className="text-xs text-gray-500 mb-1">Dinero Extra Agregado</p>
+                                         <p className="text-sm text-green-400 font-medium">+ ${viaje.dineroExtra}</p>
+                                     </div>
+                                 ) : null}
+ 
+                                 {viaje.estado === "finalizado" && (
+                                     <>
+                                         {/* Acordeón de Gastos Fijos */}
+                                         <div className="flex flex-col w-full">
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setShowGastosFijos(!showGastosFijos)}
+                                                 className="w-full flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5 text-xs text-gray-400 font-bold uppercase tracking-wider hover:bg-white/5 transition-all outline-none"
+                                             >
+                                                 <span className="flex items-center gap-1.5">
+                                                     {showGastosFijos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                     Gastos Fijos Descontados
+                                                 </span>
+                                                 <span className="text-red-400 font-semibold">-$845,000</span>
+                                             </button>
+                                             {showGastosFijos && (
+                                                 <div className="bg-black/10 p-3.5 rounded-b-xl border border-t-0 border-white/5 -mt-1 pt-4 text-xs text-gray-400 space-y-1 animate-fade-in">
+                                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                                         <div className="flex justify-between">
+                                                             <span>Peajes:</span>
+                                                             <span className="text-white font-medium">$35,000</span>
+                                                         </div>
+                                                         <div className="flex justify-between">
+                                                             <span>Conduces:</span>
+                                                             <span className="text-white font-medium">$250,000</span>
+                                                         </div>
+                                                         <div className="flex justify-between">
+                                                             <span>Viáticos:</span>
+                                                             <span className="text-white font-medium">$140,000</span>
+                                                         </div>
+                                                         <div className="flex justify-between">
+                                                             <span>Pagos:</span>
+                                                             <span className="text-white font-medium">$350,000</span>
+                                                         </div>
+                                                         <div className="flex justify-between">
+                                                             <span>Lavadas:</span>
+                                                             <span className="text-white font-medium">$50,000</span>
+                                                         </div>
+                                                         <div className="flex justify-between">
+                                                             <span>Parqueos:</span>
+                                                             <span className="text-white font-medium">$20,000</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             )}
+                                         </div>
+ 
+                                         {/* Acordeón de Ligas y Polilla */}
+                                         <div className="flex flex-col w-full">
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setShowLigasPolilla(!showLigasPolilla)}
+                                                 className="w-full flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5 text-xs text-gray-400 font-bold uppercase tracking-wider hover:bg-white/5 transition-all outline-none"
+                                             >
+                                                 <span className="flex items-center gap-1.5">
+                                                     {showLigasPolilla ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                     Ligas y Polilla (Cierre)
+                                                 </span>
+                                                 <span className="text-white font-medium">Ver detalles</span>
+                                             </button>
+                                             {showLigasPolilla && (
+                                                 <div className="bg-black/10 p-3.5 rounded-b-xl border border-t-0 border-white/5 -mt-1 pt-4 text-xs text-gray-400 space-y-2 animate-fade-in">
+                                                     <div className="flex justify-between items-center">
+                                                         <span>Ligas (Descontado):</span>
+                                                         <span className="text-red-400 font-medium">-${ligas.toLocaleString()}</span>
+                                                     </div>
+                                                     <div className="flex justify-between items-center">
+                                                         <span>Polilla (Sumado):</span>
+                                                         <span className="text-green-400 font-medium">+${polillaFinal.toLocaleString()}</span>
+                                                     </div>
+                                                 </div>
+                                             )}
+                                         </div>
+ 
+                                         {/* Acordeón de Otros Extras */}
+                                         {viaje.extrasFinal && viaje.extrasFinal.length > 0 && (
+                                             <div className="flex flex-col w-full">
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setShowOtrosExtras(!showOtrosExtras)}
+                                                     className="w-full flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5 text-xs text-gray-400 font-bold uppercase tracking-wider hover:bg-white/5 transition-all outline-none"
+                                                 >
+                                                     <span className="flex items-center gap-1.5">
+                                                         {showOtrosExtras ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                         Otros Extras (Descontado)
+                                                     </span>
+                                                     <span className="text-red-400 font-semibold">-${totalExtrasFinales.toLocaleString()}</span>
+                                                 </button>
+                                                 {showOtrosExtras && (
+                                                     <div className="bg-black/10 p-3.5 rounded-b-xl border border-t-0 border-white/5 -mt-1 pt-4 text-xs text-gray-400 space-y-2 max-h-[120px] overflow-y-auto pr-1 animate-fade-in">
+                                                         {viaje.extrasFinal.map((ext: any, idx: number) => (
+                                                             <div key={idx} className="flex justify-between text-xs text-white">
+                                                                 <span className="text-gray-400">{ext.nombre}</span>
+                                                                 <span className="text-red-400 font-medium">-${ext.valor.toLocaleString()}</span>
+                                                             </div>
+                                                         ))}
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         )}
+                                     </>
+                                 )}
+                             </div>  </div>
                     )}
                 </div>
 
