@@ -1,0 +1,5 @@
+.credenciales.local.md
+.env*
+!.env*.example
+node_modules/
+.next/

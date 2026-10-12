@@ -131,7 +131,7 @@ diferencia        = efectivo_entregado (lo digita el admin) − efectivo_esperad
 
 ### Privacidad de resultados frente a los conductores (regla dura)
 
-Los conductores **no pueden ver** ningún resultado: ni totales de la vuelta, ni ingreso real, ni gastos fijos, ni liquidación, ni cuadre, ni lo que el sistema registra como "se lo quedó el conductor". Solo ven y corrigen **sus propios registros** (planillas, polilla, gastos, repuestos) mientras la vuelta esté abierta, sin sumas ni subtotales de dinero.
+Los conductores **no pueden ver** ningún resultado: ni totales de la vuelta, ni ingreso real, ni gastos fijos, ni liquidación, ni cuadre, ni lo que el sistema registra como "se lo quedó el conductor". Solo ven y corrigen **los registros individuales de las vueltas en que van** (planillas, polilla, encomiendas, gastos) mientras la vuelta esté abierta, sin sumas ni subtotales de dinero.
 
 - Se aplica en la base de datos (RLS y vistas/funciones de reportes accesibles solo para `admin`), no solo ocultándolo en la UI.
 - Ninguna respuesta de la API al conductor debe incluir campos calculados de dinero.
@@ -155,7 +155,7 @@ Sección aparte, independiente de las vueltas, para gastos periódicos de la bus
 ### Usuarios y roles
 
 - **admin**: el dueño. Ve y edita todo, configura tarifas, gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
-- **conductor**: registra planillas, polilla, gastos variables y repuestos de las vueltas en las que está asignado. Solo ve sus propios registros, sin totales (ver *Privacidad de resultados*). No puede editar una vuelta cerrada.
+- **conductor**: cada conductor tiene su propia cuenta. Los dos conductores de una vuelta **comparten sus registros**: ambos ven y corrigen planillas, polilla, encomiendas y gastos de esa vuelta (se guarda quién registró y quién corrigió). Nunca ven totales (ver *Privacidad de resultados*). No pueden editar una vuelta cerrada.
 - Hoy hay **una buseta** (placa WFV990, número 7900), pero todas las tablas llevan `buseta_id` para soportar más en el futuro sin rediseñar.
 
 ---
@@ -184,6 +184,7 @@ Se prioriza lo gratuito. Se eligió Postgres sobre Firebase porque el dominio es
 - Los totales de dinero solo salen de la vista `reporte_vueltas`, que devuelve 0 filas a quien no sea admin.
 - Fotos en el bucket privado `evidencias`, con ruta `{uid}/{uuid}.{jpg|png|webp}`, máximo 5 MB.
 - Sin `DELETE` en ninguna tabla: se anula con `estado` + `motivo_anulacion`.
+- Usuarios iniciales: admin, conductor Florencia y conductor Pitalito (correos internos `@flotacontrol.local`). Las contraseñas están solo en `.credenciales.local.md` (ignorado por git). Nunca poner contraseñas en migraciones ni en el repo.
 - Pendiente en el dashboard: desactivar el registro público (Auth → Sign In / Providers → "Allow new users to sign up" en off). Los usuarios los crea el admin.
 
 > Next.js 16 tiene cambios que rompen con versiones anteriores. Antes de escribir código de Next, revisar la guía correspondiente en `node_modules/next/dist/docs/` y respetar los avisos de deprecación.
