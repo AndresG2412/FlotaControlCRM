@@ -55,7 +55,7 @@ export const esquemaTrayecto = z.object({
   vuelta_id: z.uuid(),
   sentido,
   fecha: z.iso.date(),
-  hora_salida: z.iso.time({ precision: -1 }).nullish(),
+  hora_salida: z.iso.time().nullish(),
   terminal_fin: terminal.nullish(),
 });
 

@@ -212,6 +212,7 @@ Decisiones ya tomadas con Next 16.4:
 - `LayoutProps` y `PageProps` son tipos globales que genera `next typegen` (lo corre `npm run typecheck`).
 - Sesión en el servidor: siempre `supabase.auth.getClaims()` (valida el JWT), nunca `getSession()`.
 
+
 ### PWA offline-first
 
 En la vía se quedan sin señal con frecuencia, así que la captura del conductor **tiene que funcionar sin internet**. Los conductores usan **Android** (Chrome), donde la PWA instalada funciona bien offline y sincroniza sola al recuperar señal.
@@ -277,7 +278,9 @@ app/
   (auth)/login           # login por usuario ("pedro" → pedro@flotacontrol.local)
   admin/                 # panel del dueño (exigirRol('admin'))
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
+                         # pantalla-vuelta.tsx y formulario-planilla.tsx: diseño provisional
   sin-conexion/          # respaldo offline del service worker
+  api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
   serwist/[path]/        # sirve el service worker
   sw.ts                  # código del service worker
   manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
@@ -286,7 +289,16 @@ lib/
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
     vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0
-  offline/               # IndexedDB (Dexie) + cola de sincronización (paso 2)
+  offline/               # IndexedDB (Dexie) + cola de sincronización
+    operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
+    db.ts                # tablas locales: cola, registros, fotos, ajustes
+    cola.ts              # guardar/anular/finalizar sin señal, sincronizar, fusionar vuelta
+    servidor.ts          # aplica un lote con la sesión del usuario (lo usa la API)
+    fotos.ts, enviar.ts, ciclo.ts  # fotos comprimidas, envío HTTP, ciclo automático (subir → enviar → descargar)
+    descargar.ts         # trae vuelta en curso, trayectos, planillas, buseta y conductores
+    vista.ts             # arma la pantalla de la vuelta desde lo local (puro, con tests)
+    acciones-conductor.ts # iniciar vuelta/trayecto, planilla, varada, finalizar (sin señal)
+    use-consulta.ts      # hook: consulta reactiva a la base local
   supabase/              # clientes servidor/navegador/proxy + tipos generados
   validaciones/          # esquemas Zod compartidos formulario ↔ servidor
 supabase/
@@ -300,8 +312,8 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 ## 4. Orden de construcción sugerido
 
 1. ✅ Proyecto base, Supabase, auth con roles (admin / conductor), RLS, PWA instalable. También están las reglas de dominio puras con tests y los esquemas Zod.
-2. Capa offline (IndexedDB + cola de sincronización), probada sin señal antes de construir encima.
-3. Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas).
+2. ✅ Capa offline (IndexedDB + cola de sincronización). Cubierta con tests (cola, fusión de vuelta, endpoint) y probada contra la base real con dos conductores simulados (transacción revertida). Falta probarla en un Android real sin señal, con cuentas reales, cuando estén las pantallas del paso 3.
+3. 🟡 Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Hecho para el conductor (con diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Falta: probarlo con cuentas reales y la vista del admin (lista de vueltas y detalle).
 4. Polilla y encomiendas + tabla de tarifas + cálculo de ingreso real.
 5. Gastos fijos (configuración) y variables (ACPM, ligas, extras) + liquidación y cuadre, solo para admin.
 6. Repuestos con foto.

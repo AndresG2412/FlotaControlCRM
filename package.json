@@ -31,6 +31,7 @@
     "esbuild-wasm": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "fake-indexeddb": "^6.2.5",
     "serwist": "^9.5.13",
     "tailwindcss": "^4",
     "typescript": "^5",

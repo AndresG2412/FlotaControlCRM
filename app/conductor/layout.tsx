@@ -1,5 +1,6 @@
 import { exigirRol } from "@/lib/auth/sesion";
 import { BotonSalir } from "../boton-salir";
+import { EstadoSincronizacion } from "./estado-sincronizacion";
 
 export const metadata = { title: "Mi vuelta" };
 
@@ -12,7 +13,10 @@ export default async function LayoutConductor({ children }: LayoutProps<"/conduc
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-borde bg-superficie/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-4">
-          <span className="font-semibold">{perfil.nombre}</span>
+          <div className="flex flex-col">
+            <span className="font-semibold">{perfil.nombre}</span>
+            <EstadoSincronizacion uid={perfil.id} />
+          </div>
           <BotonSalir />
         </div>
       </header>
