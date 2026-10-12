@@ -38,7 +38,7 @@ Cada vuelta lleva **dos conductores**:
 | **Conductor Pitalito** | Se sube en Pitalito → Cali → se baja en Pitalito | $150.000 |
 
 - Total $350.000 por vuelta completa.
-- En una **varada** (ej. Florencia → Pitalito → Florencia, sin seguir a Cali) solo se le paga al conductor Florencia: **$70.000**.
+- En una **varada** (ej. Florencia → Pitalito → Florencia) al conductor Florencia se le pagan $70.000, pero **por ahora el sistema no lo registra**: las varadas quedan en $0.
 - Los dos conductores registran desde su propio celular en la misma vuelta (cada registro guarda quién lo hizo).
 - Los valores de pago son configurables por el admin, con fecha de vigencia.
 
@@ -104,7 +104,7 @@ Ejemplo: un pasajero sube cerca de Florencia, va a Cali y paga $80.000. En Pital
   | Peajes | $35.000 |
   | Conduces | $250.000 |
   | Viáticos | $140.000 |
-  | Pago conductores (200.000 + 150.000; varada 70.000) | $350.000 |
+  | Pago conductores (200.000 + 150.000) | $350.000 |
   | Lavadas | $50.000 |
   | Parqueos | $20.000 |
   | **Total fijos** | **$845.000** |
@@ -121,7 +121,7 @@ liquidacion(vuelta)    = ingreso_real − gastos_minimos      ← ganancia (verd
 ```
 
 - Igual que el sistema anterior, pero corrigiendo un error: allá el ACPM se registraba y **no se restaba** en la liquidación. Aquí sí se resta.
-- Una **varada** se registra como vuelta de tipo `varada`, con el trayecto parcial que sí se hizo. Sirve para el historial ("el carro salió, pero no hubo base"); sus gastos son los variables que se registren más el pago de $70.000 (no se cargan los fijos de vuelta completa).
+- Una **varada** solo se **registra** como vuelta de tipo `varada` (fecha, trayecto parcial, conductores, nota) para el historial ("el carro salió, pero no hubo base"). **No lleva gastos, ingresos ni pagos: todo en $0** y no se liquida.
 
 **Cuadre de caja** (al cerrar la vuelta):
 ```
@@ -174,6 +174,17 @@ Sección aparte, independiente de las vueltas, para gastos periódicos de la bus
 | App del conductor | **PWA instalable, offline-first** (service worker + IndexedDB con Dexie + cola de sincronización) |
 
 Se prioriza lo gratuito. Se eligió Postgres sobre Firebase porque el dominio es relacional (vuelta → trayectos → planillas → pasajeros de polilla) y los reportes de dinero necesitan SQL.
+
+### Base de datos (Supabase)
+
+- Proyecto: **FlotaControl**, ref `edrjtplwvprqlnbxafjp`, región `us-east-1`, organización "Gabosky" (de un colaborador).
+- Todo el esquema está en `supabase/migrations/` (aplicadas en orden). Cambios nuevos = migración nueva, nunca editar una ya aplicada.
+- Roles en `public.perfiles` (`admin` | `conductor`). Los helpers de autorización viven en el esquema `private` (no expuesto por la API): `es_admin()`, `es_conductor()`, `puede_registrar_en_vuelta()`, etc.
+- Las reglas que tocan varias filas a la vez van en Postgres (atómicas): `cerrar_vuelta()`, `registrar_salida_adicional()`, copia de gastos fijos al crear la vuelta, marcar la salida como realizada.
+- Los totales de dinero solo salen de la vista `reporte_vueltas`, que devuelve 0 filas a quien no sea admin.
+- Fotos en el bucket privado `evidencias`, con ruta `{uid}/{uuid}.{jpg|png|webp}`, máximo 5 MB.
+- Sin `DELETE` en ninguna tabla: se anula con `estado` + `motivo_anulacion`.
+- Pendiente en el dashboard: desactivar el registro público (Auth → Sign In / Providers → "Allow new users to sign up" en off). Los usuarios los crea el admin.
 
 > Next.js 16 tiene cambios que rompen con versiones anteriores. Antes de escribir código de Next, revisar la guía correspondiente en `node_modules/next/dist/docs/` y respetar los avisos de deprecación.
 
@@ -260,8 +271,7 @@ supabase/
 
 ## 5. Preguntas abiertas (confirmar con el dueño antes de implementar)
 
-1. **Varada y gastos fijos**: en una varada, ¿se cobra algún fijo además de los $70.000 (peajes, parqueo, lavada)?
-2. **Proyecto de Supabase**: se crea en el workspace de un colaborador; esperar a que el dueño dé acceso. **No crear la base en la cuenta personal del dueño.**
+_(ninguna por ahora)_
 
 ### Respondidas
 - Vuelta = ida + regreso. Gastos mínimos por vuelta = fijos + variables, calculados con lo registrado; los ~$1.300.000 son solo la estimación mental del dueño (Módulo 4).
@@ -270,6 +280,7 @@ supabase/
 - Neto de planilla: es el neto total y se digita a mano; la foto es opcional (Módulo 1).
 - Facturar: el conductor paga en taquilla el pasaje desde esa terminal; el sobrante va a polilla o se lo queda el conductor, y se registra cuál (Módulo 2).
 - Pagos: $200.000 conductor Florencia + $150.000 conductor Pitalito por vuelta; varada: $70.000 al conductor Florencia.
+- Varadas: solo se registran, todo en $0 (sin gastos ni pagos).
 - Registran ambos conductores, cada uno desde su celular.
 - Cuadre y resultados: solo los ve el admin; los conductores no ven ningún total.
 - Pagos y vencimientos: sección aparte, solo admin, con recordatorio (Módulo 6).
