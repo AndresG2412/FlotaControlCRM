@@ -62,3 +62,11 @@ export function terminalesDeFacturacion(tramoId: string, destino: CodigoTerminal
   if (ordenDestino === undefined || ordenDestino < tramo.orden) return [];
   return tramos.filter((t) => t.orden > tramo.orden && t.orden <= ordenDestino).map((t) => t.origen);
 }
+
+export function esTerminal(valor: string | null | undefined): valor is CodigoTerminal {
+  return valor != null && valor in TERMINALES;
+}
+
+export function esSentido(valor: string): valor is Sentido {
+  return valor === "ida" || valor === "regreso";
+}

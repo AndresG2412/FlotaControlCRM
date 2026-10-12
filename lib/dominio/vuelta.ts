@@ -55,3 +55,25 @@ export function terminalesPendientes(
 ): CodigoTerminal[] {
   return terminalesConPlanilla(sentido).filter((t) => !registradas.includes(t));
 }
+
+export function esEstadoVuelta(valor: string): valor is EstadoVuelta {
+  return valor === "en_curso" || valor === "finalizada" || valor === "cerrada";
+}
+
+export function esTipoVuelta(valor: string): valor is TipoVuelta {
+  return valor === "completa" || valor === "varada";
+}
+
+/**
+ * Qué puede hacer el admin con una vuelta antes del cierre (paso 5).
+ * Cerrada = solo lectura; solo una finalizada se puede reabrir.
+ */
+export function accionesAdmin(estado: EstadoVuelta): { editar: boolean; reabrir: boolean } {
+  return { editar: estado !== "cerrada", reabrir: estado === "finalizada" };
+}
+
+/** Trayectos que le faltan a una vuelta completa. Una varada puede quedar con uno solo. */
+export function trayectosFaltantes(tipo: TipoVuelta, sentidos: readonly Sentido[]): Sentido[] {
+  if (tipo === "varada") return sentidos.length ? [] : ["ida"];
+  return (["ida", "regreso"] as const).filter((s) => !sentidos.includes(s));
+}

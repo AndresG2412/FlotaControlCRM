@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { diaEnBogota, diasDelMes, diasEntre, horaSospechosa, sumarDias } from "./fechas";
+import {
+  diaEnBogota,
+  diasDelMes,
+  diasEntre,
+  formatearFechaHora,
+  horaSospechosa,
+  rangoDelMes,
+  sumarDias,
+} from "./fechas";
 
 describe("fechas", () => {
   it("usa el día de Bogotá, no el de UTC", () => {
@@ -29,5 +37,21 @@ describe("fechas", () => {
     expect(horaSospechosa(new Date("2026-10-12T14:00:00Z"), servidor)).toBe(false);
     expect(horaSospechosa(new Date("2026-10-12T16:00:00Z"), servidor)).toBe(true);
     expect(horaSospechosa(new Date("2026-10-01T15:00:00Z"), servidor)).toBe(true);
+  });
+});
+
+describe("rangoDelMes", () => {
+  it("da el primer y el último día, también en febrero bisiesto", () => {
+    expect(rangoDelMes("2026-10")).toEqual({ desde: "2026-10-01", hasta: "2026-10-31" });
+    expect(rangoDelMes("2028-02")).toEqual({ desde: "2028-02-01", hasta: "2028-02-29" });
+  });
+});
+
+describe("formatearFechaHora", () => {
+  it("muestra la hora de Bogotá, no la del servidor", () => {
+    // 03:30 UTC del 13 = 22:30 del 12 en Bogotá (UTC−5).
+    const texto = formatearFechaHora("2026-10-13T03:30:00Z");
+    expect(texto).toContain("12");
+    expect(texto).toMatch(/10:30/);
   });
 });

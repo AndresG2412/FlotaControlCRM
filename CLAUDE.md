@@ -206,6 +206,13 @@ Se prioriza lo gratuito. Se eligió Postgres sobre Firebase porque el dominio es
 
 > Next.js 16 tiene cambios que rompen con versiones anteriores. Antes de escribir código de Next, revisar la guía correspondiente en `node_modules/next/dist/docs/` y respetar los avisos de deprecación.
 
+Decisiones del panel del admin (paso 3):
+- Lee y escribe con la sesión del admin (`crearClienteServidor()`), sin service role: la RLS ya le da acceso total. Cada función de `lib/admin/` y cada Server Action llama a `exigirRol("admin")`.
+- Las fotos se ven con URLs firmadas de 10 minutos generadas en el servidor; el bucket sigue privado.
+- Una vuelta `cerrada` es de solo lectura también para el admin (las acciones lo verifican). Reabrir solo pasa `finalizada → en_curso`; si ya hay otra en curso, `vueltas_una_en_curso` lo impide y se muestra el aviso.
+- Corregir una planilla valida la planilla completa con `esquemaPlanilla` (lo guardado + lo corregido). `actualizado_por` lo pone la base.
+- La lista muestra por defecto el mes actual (Bogotá); `?mes=todos` quita el filtro.
+
 Decisiones ya tomadas con Next 16.4:
 - `middleware` ahora se llama **`proxy.ts`** (raíz). Solo refresca la sesión de Supabase y manda a `/login` si no hay usuario; el rol se verifica en los layouts con `exigirRol()` (`lib/auth/sesion.ts`) y, de verdad, en la RLS.
 - **Cache Components apagado** (`cacheComponents: false`): Serwist 9 no es compatible con él. Revisar cuando salga Serwist 10.
@@ -276,7 +283,9 @@ Diseño de la sincronización (paso 2):
 proxy.ts                 # refresca la sesión y protege /admin y /conductor
 app/
   (auth)/login           # login por usuario ("pedro" → pedro@flotacontrol.local)
-  admin/                 # panel del dueño (exigirRol('admin'))
+  admin/                 # panel del dueño (exigirRol('admin') en layout y en cada page)
+    vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
+      acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
                          # pantalla-vuelta.tsx y formulario-planilla.tsx: diseño provisional
   sin-conexion/          # respaldo offline del service worker
@@ -285,10 +294,13 @@ app/
   sw.ts                  # código del service worker
   manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
 lib/
+  admin/                 # lecturas del panel (server-only, exigirRol('admin') en cada función)
+    vueltas.ts           # listarVueltas, detalleVuelta (con URLs firmadas de fotos), listarConductores
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
-    vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0
+    vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0, qué puede hacer el admin
+    planillas.ts         # estado de cada terminal (registrada, sin planilla, pendiente); conductor y admin
   offline/               # IndexedDB (Dexie) + cola de sincronización
     operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
     db.ts                # tablas locales: cola, registros, fotos, ajustes
@@ -300,7 +312,7 @@ lib/
     acciones-conductor.ts # iniciar vuelta/trayecto, planilla, varada, finalizar (sin señal)
     use-consulta.ts      # hook: consulta reactiva a la base local
   supabase/              # clientes servidor/navegador/proxy + tipos generados
-  validaciones/          # esquemas Zod compartidos formulario ↔ servidor
+  validaciones/          # esquemas Zod compartidos formulario ↔ servidor (admin.ts: filtros y acciones del panel)
 supabase/
   migrations/
 ```
@@ -313,7 +325,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 
 1. ✅ Proyecto base, Supabase, auth con roles (admin / conductor), RLS, PWA instalable. También están las reglas de dominio puras con tests y los esquemas Zod.
 2. ✅ Capa offline (IndexedDB + cola de sincronización). Cubierta con tests (cola, fusión de vuelta, endpoint) y probada contra la base real con dos conductores simulados (transacción revertida). Falta probarla en un Android real sin señal, con cuentas reales, cuando estén las pantallas del paso 3.
-3. 🟡 Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Hecho para el conductor (con diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Falta: probarlo con cuentas reales y la vista del admin (lista de vueltas y detalle).
+3. ✅ Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Conductor (diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Admin (diseño provisional, requiere conexión): lista con filtros, detalle con quién registró y corrigió cada planilla, foto con URL firmada, corregir o eliminar (anular) planillas, cambiar conductores y tipo, reabrir una finalizada. Falta probar el flujo del conductor en un Android real sin señal.
 4. Polilla y encomiendas + tabla de tarifas + cálculo de ingreso real.
 5. Gastos fijos (configuración) y variables (ACPM, ligas, extras) + liquidación y cuadre, solo para admin.
 6. Repuestos con foto.

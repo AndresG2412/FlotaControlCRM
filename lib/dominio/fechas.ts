@@ -54,3 +54,23 @@ export function horaSospechosa(
   if (adelanto > toleranciaFuturoMin * 60_000) return true;
   return -adelanto > maxDiasRetraso * 86_400_000;
 }
+
+/** Primer y último día de un mes "YYYY-MM" (para filtrar columnas date). */
+export function rangoDelMes(mes: string): { desde: FechaISO; hasta: FechaISO } {
+  const dias = diasDelMes(mes);
+  return { desde: dias[0], hasta: dias[dias.length - 1] };
+}
+
+const formatoFechaHora = new Intl.DateTimeFormat("es-CO", {
+  timeZone: ZONA_HORARIA,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** Un instante (timestamptz) como fecha y hora de Bogotá, para mostrar. */
+export function formatearFechaHora(instante: string | Date): string {
+  return formatoFechaHora.format(typeof instante === "string" ? new Date(instante) : instante);
+}

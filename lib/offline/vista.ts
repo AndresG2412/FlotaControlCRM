@@ -2,7 +2,8 @@
 // conductor: la vuelta en curso, sus trayectos y el estado de cada terminal.
 // Puro (sin Dexie ni React) para poder probarlo.
 
-import { terminalesConPlanilla, type CodigoTerminal, type Sentido } from "@/lib/dominio/ruta";
+import { estadoTerminales, type EstadoTerminal } from "@/lib/dominio/planillas";
+import type { CodigoTerminal, Sentido } from "@/lib/dominio/ruta";
 import type { RegistroLocal } from "./db";
 
 export type VueltaLocal = {
@@ -36,8 +37,6 @@ export type PlanillaLocal = {
   motivo_sin_planilla?: string | null;
   foto_path?: string | null;
 };
-
-export type EstadoTerminal = "pendiente" | "registrada" | "sin_planilla";
 
 export type TerminalVista = {
   codigo: CodigoTerminal;
@@ -83,20 +82,10 @@ export function armarVista(
     const trayecto = trayectos.find((t) => t.sentido === sentido);
     if (!trayecto) return null;
     // Si se varó, solo cuentan las terminales anteriores a donde terminó.
-    let codigos = terminalesConPlanilla(sentido);
-    if (trayecto.terminal_fin) {
-      const fin = codigos.indexOf(trayecto.terminal_fin);
-      if (fin >= 0) codigos = codigos.slice(0, fin);
-    }
-    const terminales = codigos.map((codigo): TerminalVista => {
-      const planilla = planillas.find((p) => p.trayecto_id === trayecto.id && p.terminal === codigo) ?? null;
-      return {
-        codigo,
-        planilla,
-        estado: !planilla ? "pendiente" : planilla.emitida ? "registrada" : "sin_planilla",
-        sinEnviar: planilla ? sinEnviar.has(planilla.id) : false,
-      };
-    });
+    const delTrayecto = planillas.filter((p) => p.trayecto_id === trayecto.id);
+    const terminales = estadoTerminales(sentido, trayecto.terminal_fin, delTrayecto).map(
+      (t): TerminalVista => ({ ...t, sinEnviar: t.planilla ? sinEnviar.has(t.planilla.id) : false }),
+    );
     return { trayecto, terminales, sinEnviar: sinEnviar.has(trayecto.id) || terminales.some((t) => t.sinEnviar) };
   };
 

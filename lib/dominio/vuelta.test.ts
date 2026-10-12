@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  accionesAdmin,
   cuentaDinero,
   puedeCambiarEstado,
   puedeIniciarVuelta,
   terminalesPendientes,
+  trayectosFaltantes,
   vueltaEnCurso,
 } from "./vuelta";
 
@@ -40,5 +42,18 @@ describe("vuelta", () => {
     expect(terminalesPendientes("ida", [])).toEqual(["florencia", "pitalito", "popayan"]);
     expect(terminalesPendientes("ida", ["florencia"])).toEqual(["pitalito", "popayan"]);
     expect(terminalesPendientes("regreso", ["cali", "popayan", "pitalito"])).toEqual([]);
+  });
+
+  it("al admin le falta ver ida y regreso en una completa; una varada puede quedar con uno", () => {
+    expect(trayectosFaltantes("completa", ["ida"])).toEqual(["regreso"]);
+    expect(trayectosFaltantes("completa", [])).toEqual(["ida", "regreso"]);
+    expect(trayectosFaltantes("varada", ["ida"])).toEqual([]);
+    expect(trayectosFaltantes("varada", [])).toEqual(["ida"]);
+  });
+
+  it("el admin edita hasta el cierre y solo reabre una finalizada", () => {
+    expect(accionesAdmin("en_curso")).toEqual({ editar: true, reabrir: false });
+    expect(accionesAdmin("finalizada")).toEqual({ editar: true, reabrir: true });
+    expect(accionesAdmin("cerrada")).toEqual({ editar: false, reabrir: false });
   });
 });
