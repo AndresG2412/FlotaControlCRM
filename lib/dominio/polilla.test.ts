@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repartoPasajero, sobrante, sugerirFacturacion, tarifaVigente, type Tarifa } from "./polilla";
-
-const tarifas: Tarifa[] = [
-  { origen: "pitalito", destino: "cali", precio: 50000, vigenteDesde: "2026-01-01" },
-  { origen: "pitalito", destino: "cali", precio: 55000, vigenteDesde: "2026-09-01" },
-  { origen: "pitalito", destino: "cali", precio: 60000, vigenteDesde: "2027-01-01" },
-];
+import { destinosDeEncomienda, repartoPasajero, sobrante, terminalDeFacturacion, tramoActual } from "./polilla";
 
 describe("polilla", () => {
   it("ejemplo del dueño: cobra 80.000, factura 55.000 en Pitalito, sobran 25.000", () => {
@@ -25,21 +19,26 @@ describe("polilla", () => {
     expect(sobrante({ montoCobrado: 20000, montoFacturado: 0 })).toBe(20000);
   });
 
-  it("usa la tarifa vigente en la fecha, no una futura", () => {
-    expect(tarifaVigente(tarifas, "pitalito", "cali", "2026-10-12")?.precio).toBe(55000);
-    expect(tarifaVigente(tarifas, "pitalito", "cali", "2026-05-01")?.precio).toBe(50000);
-    expect(tarifaVigente(tarifas, "pitalito", "cali", "2025-12-31")).toBeUndefined();
+  it("se factura en la primera terminal que pasa sin bajarse", () => {
+    expect(terminalDeFacturacion("ida-1", "cali")).toBe("pitalito");
+    expect(terminalDeFacturacion("ida-2", "cali")).toBe("popayan");
+    expect(terminalDeFacturacion("ida-1", "pitalito")).toBeNull();
+    expect(terminalDeFacturacion("regreso-1", "florencia")).toBe("popayan");
   });
 
-  it("sugiere dónde facturar y cuánto", () => {
-    expect(sugerirFacturacion(tarifas, "ida-1", "cali", "2026-10-12")).toEqual({
-      terminal: "pitalito",
-      monto: 55000,
-    });
-    expect(sugerirFacturacion(tarifas, "ida-1", "pitalito", "2026-10-12")).toBeNull();
-    expect(sugerirFacturacion([], "ida-2", "cali", "2026-10-12")).toEqual({
-      terminal: "popayan",
-      monto: null,
-    });
+  it("el tramo actual sale de la última terminal registrada", () => {
+    expect(tramoActual("ida", []).id).toBe("ida-1");
+    expect(tramoActual("ida", ["florencia"]).id).toBe("ida-1");
+    expect(tramoActual("ida", ["florencia", "pitalito"]).id).toBe("ida-2");
+    expect(tramoActual("regreso", ["cali", "popayan", "pitalito"]).id).toBe("regreso-3");
+  });
+
+  it("una encomienda va siempre hacia adelante", () => {
+    expect(destinosDeEncomienda("ida", { terminal: "florencia" })).toEqual(["pitalito", "popayan", "cali"]);
+    expect(destinosDeEncomienda("ida", { terminal: "popayan" })).toEqual(["cali"]);
+    expect(destinosDeEncomienda("ida", { terminal: "cali" })).toEqual([]);
+    expect(destinosDeEncomienda("ida", { tramo: "ida-2" })).toEqual(["popayan", "cali"]);
+    expect(destinosDeEncomienda("ida", { tramo: "regreso-1" })).toEqual([]);
+    expect(destinosDeEncomienda("regreso", { terminal: "cali" })).toEqual(["popayan", "pitalito", "florencia"]);
   });
 });

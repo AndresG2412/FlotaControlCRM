@@ -23,6 +23,7 @@ import { useConsulta } from "@/lib/offline/use-consulta";
 import { armarVista, type TerminalVista, type TrayectoVista, type VistaVuelta } from "@/lib/offline/vista";
 import { unirseAVuelta } from "./acciones";
 import { FormularioPlanilla } from "./formulario-planilla";
+import { PolillaDelTrayecto } from "./polilla";
 
 // Regla dura: aquí no se muestran sumas ni totales de dinero, solo registros sueltos.
 // Diseño provisional: la presentación final la define la sección de diseño.
@@ -195,6 +196,7 @@ function VueltaEnCurso({ uid, vista, conductores }: { uid: string; vista: VistaV
             ),
           )}
         </ul>
+        <PolillaDelTrayecto trayecto={t} />
         {!t.trayecto.terminal_fin && <Varada vista={vista} trayecto={t} />}
       </section>
     );

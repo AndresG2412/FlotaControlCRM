@@ -1,10 +1,21 @@
-// Polilla: pasajeros recogidos en la vía. Regla confirmada con el dueño
-// (CLAUDE.md, Módulo 2); no cambiar sin confirmar.
+// Polilla: pasajeros recogidos en la vía y encomiendas. Regla confirmada con el
+// dueño (CLAUDE.md, Módulo 2); no cambiar sin confirmar.
+//
+// Sin tabla de tarifas (decisión del dueño): el conductor digita cuánto pagó en
+// taquilla al facturar, y a conciencia dice si el sobrante va a la caja o se lo
+// quedó. En la terminal el tiquete se hace por lo que pagó el pasajero, así que lo
+// facturado nunca supera lo cobrado.
 
 import type { Pesos } from "./dinero";
-import type { FechaISO } from "./fechas";
-import type { CodigoTerminal } from "./ruta";
-import { terminalesDeFacturacion } from "./ruta";
+import {
+  buscarTramo,
+  terminalesConPlanilla,
+  terminalesDeFacturacion,
+  tramosDe,
+  type CodigoTerminal,
+  type Sentido,
+  type Tramo,
+} from "./ruta";
 
 export type DestinoSobrante = "polilla" | "conductor";
 
@@ -27,37 +38,42 @@ export function repartoPasajero(p: PasajeroPolilla): { polilla: Pesos; quedoCond
     : { polilla: 0, quedoConductor: s };
 }
 
-export type Tarifa = {
-  origen: CodigoTerminal;
-  destino: CodigoTerminal;
-  precio: Pesos;
-  vigenteDesde: FechaISO;
-};
-
-/** Tarifa vigente en una fecha (la de vigencia más reciente que no sea futura). */
-export function tarifaVigente(
-  tarifas: readonly Tarifa[],
-  origen: CodigoTerminal,
-  destino: CodigoTerminal,
-  fecha: FechaISO,
-): Tarifa | undefined {
-  return tarifas
-    .filter((t) => t.origen === origen && t.destino === destino && t.vigenteDesde <= fecha)
-    .sort((a, b) => b.vigenteDesde.localeCompare(a.vigenteDesde))[0];
+/**
+ * Terminal donde se factura al pasajero: la primera que pasa sin bajarse. null si
+ * se baja en la siguiente terminal (no se factura). Facturar es obligatorio si
+ * sigue en el bus, porque allí cuentan pasajeros a mano.
+ */
+export function terminalDeFacturacion(tramoId: string, destino: CodigoTerminal): CodigoTerminal | null {
+  return terminalesDeFacturacion(tramoId, destino)[0] ?? null;
 }
 
 /**
- * Sugerencia para el formulario de polilla: si el pasajero pasó por una terminal,
- * dónde se factura y cuánto se paga en taquilla (desde esa terminal al destino).
- * El conductor puede corregir el monto; el valor que digita manda.
+ * Tramo en el que va la buseta según las terminales ya registradas (con o sin
+ * planilla): el que sale de la última registrada. Si no hay ninguna, el primero.
+ * Sirve para preseleccionar el tramo al registrar polilla.
  */
-export function sugerirFacturacion(
-  tarifas: readonly Tarifa[],
-  tramoId: string,
-  destino: CodigoTerminal,
-  fecha: FechaISO,
-): { terminal: CodigoTerminal; monto: Pesos | null } | null {
-  const terminal = terminalesDeFacturacion(tramoId, destino)[0];
-  if (!terminal) return null;
-  return { terminal, monto: tarifaVigente(tarifas, terminal, destino, fecha)?.precio ?? null };
+export function tramoActual(sentido: Sentido, terminalesRegistradas: readonly CodigoTerminal[]): Tramo {
+  const tramos = tramosDe(sentido);
+  const salidas = terminalesConPlanilla(sentido);
+  const ultima = [...salidas].reverse().find((t) => terminalesRegistradas.includes(t));
+  return tramos.find((t) => t.origen === ultima) ?? tramos[0];
+}
+
+/** Lugares donde se puede recibir una encomienda en un sentido: terminales de salida o un tramo. */
+export type LugarEncomienda = { terminal: CodigoTerminal } | { tramo: string };
+
+/**
+ * Destinos válidos para una encomienda: más adelante que donde se recibió, en el
+ * sentido del trayecto. Recibida en terminal: cualquier terminal posterior.
+ * Recibida en la vía: el destino del tramo o más adelante.
+ */
+export function destinosDeEncomienda(sentido: Sentido, lugar: LugarEncomienda): CodigoTerminal[] {
+  const tramos = tramosDe(sentido);
+  if ("terminal" in lugar) {
+    const desde = tramos.find((t) => t.origen === lugar.terminal);
+    return desde ? tramos.filter((t) => t.orden >= desde.orden).map((t) => t.destino) : [];
+  }
+  const tramo = buscarTramo(lugar.tramo);
+  if (!tramo || tramo.sentido !== sentido) return [];
+  return tramos.filter((t) => t.orden >= tramo.orden).map((t) => t.destino);
 }

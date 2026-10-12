@@ -6,7 +6,7 @@ import type { CodigoTerminal, Sentido } from "@/lib/dominio/ruta";
 import { puedeIniciarVuelta } from "@/lib/dominio/vuelta";
 import { cambiarEstadoVuelta, guardar } from "./cola";
 import type { BaseLocal } from "./db";
-import type { PlanillaLocal, TrayectoLocal, VueltaLocal } from "./vista";
+import type { EncomiendaLocal, PasajeroLocal, PlanillaLocal, TrayectoLocal, VueltaLocal } from "./vista";
 
 const ahora = () => new Date().toISOString();
 
@@ -78,6 +78,48 @@ export async function guardarPlanilla(
     sentido: trayecto.sentido,
     neto: datos.emitida ? datos.neto : null,
     motivo_sin_planilla: datos.emitida ? null : datos.motivo_sin_planilla,
+  });
+  return id;
+}
+
+/**
+ * Crea o corrige un pasajero de vía. Si pasa por una terminal se factura en la
+ * primera (lo valida el esquema); el monto facturado lo digita el conductor.
+ */
+export async function guardarPasajero(
+  db: BaseLocal,
+  trayecto: Pick<TrayectoLocal, "id" | "sentido">,
+  datos: Omit<PasajeroLocal, "id" | "trayecto_id"> & { id?: string },
+): Promise<string> {
+  const id = datos.id ?? crypto.randomUUID();
+  await guardar(db, "polilla_pasajeros", {
+    ...datos,
+    id,
+    ocurrido_en: ahora(),
+    trayecto_id: trayecto.id,
+    sentido: trayecto.sentido,
+    terminal_facturacion: datos.facturado ? datos.terminal_facturacion : null,
+    monto_facturado: datos.facturado ? datos.monto_facturado : 0,
+  });
+  return id;
+}
+
+/** Crea o corrige una encomienda (monto = neto final que recibe la vuelta). */
+export async function guardarEncomienda(
+  db: BaseLocal,
+  trayecto: Pick<TrayectoLocal, "id" | "sentido">,
+  datos: Omit<EncomiendaLocal, "id" | "trayecto_id"> & { id?: string },
+): Promise<string> {
+  const id = datos.id ?? crypto.randomUUID();
+  await guardar(db, "encomiendas", {
+    ...datos,
+    id,
+    ocurrido_en: ahora(),
+    trayecto_id: trayecto.id,
+    sentido: trayecto.sentido,
+    recibida_en_terminal: datos.recibida_en_terminal ?? null,
+    recibida_en_tramo: datos.recibida_en_terminal ? null : (datos.recibida_en_tramo ?? null),
+    descripcion: datos.descripcion?.trim() || null,
   });
   return id;
 }

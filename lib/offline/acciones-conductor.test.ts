@@ -1,7 +1,16 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { finalizarVuelta, guardarPlanilla, iniciarTrayecto, iniciarVuelta, marcarVarada, YaHayVueltaEnCurso } from "./acciones-conductor";
-import { idsSinSincronizar, resumenCola } from "./cola";
+import {
+  finalizarVuelta,
+  guardarEncomienda,
+  guardarPasajero,
+  guardarPlanilla,
+  iniciarTrayecto,
+  iniciarVuelta,
+  marcarVarada,
+  YaHayVueltaEnCurso,
+} from "./acciones-conductor";
+import { anular, idsSinSincronizar, resumenCola } from "./cola";
 import { crearBaseLocal, type BaseLocal } from "./db";
 import { armarVista, type TrayectoLocal, type VueltaLocal } from "./vista";
 
@@ -71,5 +80,82 @@ describe("vuelta del conductor (sin señal)", () => {
     expect(await vista()).toBeNull();
     await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
     expect((await resumenCola(db)).pendientes).toBe(3); // vuelta, finalizar, vuelta nueva
+  });
+
+  it("polilla: registra pasajeros uno por uno con su sobrante, sin sumas", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    const ida = { id: idaId, sentido: "ida" as const };
+
+    // Ejemplo del dueño: 80.000 cobrados, 55.000 en taquilla de Pitalito, 25.000 a la caja.
+    await guardarPasajero(db, ida, {
+      tramo_id: "ida-1", destino: "cali", monto_cobrado: 80000,
+      facturado: true, terminal_facturacion: "pitalito", monto_facturado: 55000, destino_sobrante: "polilla",
+    });
+    // Se baja antes de la terminal: no se factura; el conductor dice que se lo quedó.
+    await guardarPasajero(db, ida, {
+      tramo_id: "ida-1", destino: "pitalito", monto_cobrado: 20000,
+      facturado: false, monto_facturado: 0, destino_sobrante: "conductor",
+    });
+
+    const t = (await vista())!.ida!;
+    expect(t.pasajeros.map((p) => [p.destino, p.sobrante, p.destino_sobrante])).toEqual(
+      expect.arrayContaining([
+        ["cali", 25000, "polilla"],
+        ["pitalito", 20000, "conductor"],
+      ]),
+    );
+    expect(t.pasajeros.every((p) => p.sinEnviar)).toBe(true);
+    // La vista del conductor no expone ningún total de dinero.
+    expect(Object.keys(t)).not.toContain("totalPolilla");
+  });
+
+  it("polilla: rechaza un pasajero que pasa una terminal sin facturar", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    await expect(
+      guardarPasajero(db, { id: idaId, sentido: "ida" }, {
+        tramo_id: "ida-1", destino: "cali", monto_cobrado: 80000,
+        facturado: false, monto_facturado: 0, destino_sobrante: "polilla",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("polilla: corregir no duplica y eliminar lo anula", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    const ida = { id: idaId, sentido: "ida" as const };
+    const datos = {
+      tramo_id: "ida-3", destino: "cali" as const, monto_cobrado: 30000,
+      facturado: false, monto_facturado: 0, destino_sobrante: "polilla" as const,
+    };
+    const id = await guardarPasajero(db, ida, datos);
+    await guardarPasajero(db, ida, { ...datos, id, monto_cobrado: 35000 });
+    expect((await vista())!.ida!.pasajeros).toHaveLength(1);
+    expect((await vista())!.ida!.pasajeros[0].sobrante).toBe(35000);
+
+    await anular(db, "polilla_pasajeros", id, "Lo registré dos veces");
+    expect((await vista())!.ida!.pasajeros).toHaveLength(0);
+  });
+
+  it("encomiendas: en terminal o en la vía, siempre hacia adelante", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    const ida = { id: idaId, sentido: "ida" as const };
+    await guardarEncomienda(db, ida, { recibida_en_terminal: "florencia", destino: "cali", descripcion: "Caja", monto: 15000 });
+    await guardarEncomienda(db, ida, { recibida_en_tramo: "ida-2", destino: "cali", monto: 10000 });
+    await expect(
+      guardarEncomienda(db, ida, { recibida_en_terminal: "popayan", destino: "pitalito", monto: 10000 }),
+    ).rejects.toThrow();
+    expect((await vista())!.ida!.encomiendas.map((e) => e.monto).sort()).toEqual([10000, 15000]);
+  });
+
+  it("el tramo actual avanza con las planillas registradas", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    expect((await vista())!.ida!.tramoActual.id).toBe("ida-1");
+    await guardarPlanilla(db, { id: idaId, sentido: "ida" }, { terminal: "florencia", emitida: true, neto: 1 });
+    await guardarPlanilla(db, { id: idaId, sentido: "ida" }, { terminal: "pitalito", emitida: false, motivo_sin_planilla: "Cerrada" });
+    expect((await vista())!.ida!.tramoActual.id).toBe("ida-2");
   });
 });

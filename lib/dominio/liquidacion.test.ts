@@ -66,4 +66,30 @@ describe("liquidación", () => {
     expect(diferenciaCuadre(1100000, 1105000)).toBe(-5000);
     expect(diferenciaCuadre(1105000, 1105000)).toBe(0);
   });
+
+  it("coincide con reporte_vueltas en la base (prueba del paso 4, transacción revertida)", () => {
+    // Mismos datos que se insertaron en Supabase: el resultado de la vista fue
+    // planillas 1.050.000 · polilla 25.000 · encomiendas 15.000 · ingreso real 1.090.000 ·
+    // se quedó el conductor 20.000 · gastos fijos 845.000; y como varada, todo 0.
+    const datos: DatosVuelta = {
+      tipo: "completa",
+      netosPlanillas: [600000, 450000],
+      pasajerosPolilla: [
+        { montoCobrado: 80000, montoFacturado: 55000, destinoSobrante: "polilla" },
+        { montoCobrado: 20000, montoFacturado: 0, destinoSobrante: "conductor" },
+      ],
+      encomiendas: [15000],
+      gastosFijos: fijos,
+      gastosVariables: [],
+    };
+    expect(liquidar(datos)).toMatchObject({
+      ingresoPlanillas: 1050000,
+      ingresoPolilla: 25000,
+      ingresoEncomiendas: 15000,
+      ingresoReal: 1090000,
+      quedoConductor: 20000,
+      gastosFijos: 845000,
+    });
+    expect(liquidar({ ...datos, tipo: "varada" }).ingresoReal).toBe(0);
+  });
 });

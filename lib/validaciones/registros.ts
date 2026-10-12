@@ -3,7 +3,8 @@
 // checks de la base: si cambia una migración, cambiar aquí también.
 
 import { z } from "zod";
-import { destinosPosibles, terminalesConPlanilla, terminalesDeFacturacion } from "@/lib/dominio/ruta";
+import { destinosDeEncomienda, terminalDeFacturacion } from "@/lib/dominio/polilla";
+import { buscarTramo, destinosPosibles, terminalesConPlanilla } from "@/lib/dominio/ruta";
 
 const terminal = z.enum(["florencia", "pitalito", "popayan", "cali"]);
 const tramo = z.enum(["ida-1", "ida-2", "ida-3", "regreso-1", "regreso-2", "regreso-3"]);
@@ -96,10 +97,16 @@ export const esquemaPlanilla = z
     }
   });
 
+/**
+ * Pasajero de vía. Si pasa por una terminal sin bajarse, se factura (obligatorio)
+ * en la primera que pasa y el conductor digita cuánto pagó en taquilla. Lo
+ * facturado nunca supera lo cobrado: el tiquete se hace por lo que pagó.
+ */
 export const esquemaPolilla = z
   .object({
     ...base,
     trayecto_id: z.uuid(),
+    sentido, // solo para validar el tramo; no se guarda
     tramo_id: tramo,
     destino: terminal,
     monto_cobrado: pesosPositivos(2_000_000),
@@ -109,34 +116,54 @@ export const esquemaPolilla = z
     destino_sobrante: z.enum(["polilla", "conductor"]),
   })
   .superRefine((p, ctx) => {
+    if (buscarTramo(p.tramo_id)?.sentido !== p.sentido) {
+      ctx.addIssue({ code: "custom", path: ["tramo_id"], message: "Ese tramo no es de este trayecto" });
+      return;
+    }
     if (!destinosPosibles(p.tramo_id).includes(p.destino)) {
       ctx.addIssue({ code: "custom", path: ["destino"], message: "Destino inválido para ese tramo" });
+      return;
     }
-    if (p.facturado) {
-      if (!p.terminal_facturacion || !terminalesDeFacturacion(p.tramo_id, p.destino).includes(p.terminal_facturacion)) {
-        ctx.addIssue({ code: "custom", path: ["terminal_facturacion"], message: "Terminal de facturación inválida" });
+    const debeFacturar = terminalDeFacturacion(p.tramo_id, p.destino);
+    if (debeFacturar) {
+      if (!p.facturado || p.terminal_facturacion !== debeFacturar) {
+        ctx.addIssue({ code: "custom", path: ["terminal_facturacion"], message: `Pasa por ${debeFacturar}: hay que facturarlo allí` });
       }
-    } else if (p.terminal_facturacion || p.monto_facturado !== 0) {
-      ctx.addIssue({ code: "custom", path: ["monto_facturado"], message: "Si no se facturó, el monto facturado es 0" });
+      if (p.monto_facturado < 1) {
+        ctx.addIssue({ code: "custom", path: ["monto_facturado"], message: "Escribe cuánto se pagó en taquilla" });
+      }
+    } else if (p.facturado || p.terminal_facturacion || p.monto_facturado !== 0) {
+      ctx.addIssue({ code: "custom", path: ["monto_facturado"], message: "Se baja antes de la terminal: no se factura" });
     }
     if (p.monto_facturado > p.monto_cobrado) {
       ctx.addIssue({ code: "custom", path: ["monto_facturado"], message: "Lo facturado no puede superar lo cobrado" });
     }
   });
 
+/**
+ * Encomienda: dinero suelto (no va en la planilla). El monto es el neto final que
+ * recibe la vuelta; si la dejó un taquillero, ya descontó su porcentaje.
+ */
 export const esquemaEncomienda = z
   .object({
     ...base,
     trayecto_id: z.uuid(),
+    sentido, // solo para validar el orden; no se guarda
     recibida_en_terminal: terminal.nullish(),
     recibida_en_tramo: tramo.nullish(),
     destino: terminal,
     descripcion: textoOpcional(200),
     monto: pesosPositivos(5_000_000),
   })
-  .refine((e) => (e.recibida_en_terminal == null) !== (e.recibida_en_tramo == null), {
-    path: ["recibida_en_terminal"],
-    message: "Indica si se recibió en terminal o en la vía",
+  .superRefine((e, ctx) => {
+    if ((e.recibida_en_terminal == null) === (e.recibida_en_tramo == null)) {
+      ctx.addIssue({ code: "custom", path: ["recibida_en_terminal"], message: "Indica si se recibió en terminal o en la vía" });
+      return;
+    }
+    const lugar = e.recibida_en_terminal ? { terminal: e.recibida_en_terminal } : { tramo: e.recibida_en_tramo ?? "" };
+    if (!destinosDeEncomienda(e.sentido, lugar).includes(e.destino)) {
+      ctx.addIssue({ code: "custom", path: ["destino"], message: "El destino debe estar más adelante en la ruta" });
+    }
   });
 
 export const esquemaGastoVariable = z

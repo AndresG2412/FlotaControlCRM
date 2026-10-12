@@ -1,5 +1,6 @@
 // Trae del servidor lo que el conductor necesita tener en el celular: la vuelta
-// en curso con sus trayectos y planillas, la buseta y los conductores. Lectura con
+// en curso con sus trayectos, planillas, pasajeros de vía y encomiendas, la
+// buseta y los conductores. Lectura con
 // la sesión del usuario (RLS). Nunca pisa lo que aún no se ha enviado.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -36,10 +37,15 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
   if (trayectos.error) throw new Error("No se pudo descargar");
 
   const idsTrayectos = trayectos.data.map((t) => t.id);
-  const planillas = idsTrayectos.length
-    ? await supabase.from("planillas").select("*").in("trayecto_id", idsTrayectos)
-    : { data: [], error: null };
-  if (planillas.error) throw new Error("No se pudo descargar");
+  const vacio = { data: [], error: null };
+  const [planillas, pasajeros, encomiendas] = idsTrayectos.length
+    ? await Promise.all([
+        supabase.from("planillas").select("*").in("trayecto_id", idsTrayectos),
+        supabase.from("polilla_pasajeros").select("*").in("trayecto_id", idsTrayectos),
+        supabase.from("encomiendas").select("*").in("trayecto_id", idsTrayectos),
+      ])
+    : [vacio, vacio, vacio];
+  if (planillas.error || pasajeros.error || encomiendas.error) throw new Error("No se pudo descargar");
 
   const pendientes = await idsSinSincronizar(db);
   const ahora = new Date().toISOString();
@@ -55,6 +61,8 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     ...vueltas.data.map((v) => aRegistro("vueltas", v)),
     ...trayectos.data.map((t) => aRegistro("trayectos", t)),
     ...planillas.data.map((p) => aRegistro("planillas", p)),
+    ...pasajeros.data.map((p) => aRegistro("polilla_pasajeros", p)),
+    ...encomiendas.data.map((e) => aRegistro("encomiendas", e)),
   ].filter((r) => !pendientes.has(r.id)); // lo local sin enviar manda
 
   await db.transaction("rw", db.registros, db.ajustes, async () => {

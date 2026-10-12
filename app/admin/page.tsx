@@ -9,7 +9,7 @@ const MODULOS: { titulo: string; detalle: string; icono: LucideIcon; href?: stri
   { titulo: "Repuestos", detalle: "Historial por categoría y fecha", icono: Wrench },
   { titulo: "Pagos y vencimientos", detalle: "SOAT, seguro, tecnomecánica, cuota", icono: Receipt },
   { titulo: "Reportes", detalle: "Por vuelta, mes y conductor", icono: ClipboardList },
-  { titulo: "Configuración", detalle: "Tarifas, gastos fijos, conductores", icono: Settings },
+  { titulo: "Configuración", detalle: "Gastos fijos y conductores", icono: Settings },
 ];
 
 const tarjeta = "flex gap-3 rounded-2xl border border-borde bg-superficie p-4";

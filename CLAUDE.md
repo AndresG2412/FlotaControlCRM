@@ -73,7 +73,11 @@ ingreso_real(vuelta)   = Σ neto de planillas + Σ polilla + Σ encomiendas
 Ejemplo: un pasajero sube cerca de Florencia, va a Cali y paga $80.000. En Pitalito sigue en el bus, así que el conductor paga $55.000 en taquilla (Pitalito → Cali) y queda en la planilla; esos $55.000 ya vienen dentro del neto de esa planilla. Sobran $25.000: van a polilla o se los queda el conductor, y queda registrado cuál de los dos.
 
 - Lo que se queda el conductor **no suma al ingreso**, pero se muestra en los reportes como un total visible por vuelta y por conductor. La idea es que nada quede sin registro.
-- **Tarifas**: tabla configurable por el admin (origen → destino → precio) para sugerir el monto facturado. El conductor puede corregirlo; el valor ingresado manda.
+- **Sin tarifas** (decisión del dueño): no hay tabla de precios ni monto sugerido. El conductor digita cuánto pagó en taquilla y, a conciencia, dice si el sobrante va a la caja o se lo quedó. La confianza en los conductores pesa más que controlar cada peso. La tabla `tarifas` existe en la base pero no se usa.
+- **Facturar es obligatorio** si el pasajero sigue en el bus al pasar por una terminal. Se factura en la **primera** terminal que pasa (`terminalDeFacturacion`). Si se baja en la siguiente terminal, no se factura.
+- **No hay sobrante negativo:** en la terminal el tiquete se hace por lo que pagó el pasajero, así que lo facturado nunca supera lo cobrado. Lo validan Zod y la base (`polilla_facturado_no_supera_cobrado` y el trigger `validar_polilla`).
+- **Monto de la encomienda = neto final** que recibe la vuelta. Si la dejó un taquillero, ya descontó su porcentaje. La encomienda va siempre hacia adelante en la ruta: lo validan Zod y el trigger `validar_encomienda`.
+- Registrar polilla toma segundos: el tramo viene preseleccionado (sale de la última terminal registrada), el destino se elige con botones, y "Guardar y otro" deja listo el siguiente pasajero.
 - **Encomiendas**: origen, destino, descripción corta, monto, dónde se recibió (terminal / vía).
 - No guardar nombres ni documentos de pasajeros de polilla (minimización de datos, Ley 1581).
 
@@ -167,7 +171,7 @@ Sección aparte, independiente de las vueltas, para gastos periódicos de la bus
 
 ### Usuarios y roles
 
-- **admin**: el dueño. Ve y edita todo, configura tarifas, gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
+- **admin**: el dueño. Ve y edita todo, configura gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
 - **conductor**: cada conductor tiene su propia cuenta. Los dos conductores de una vuelta **comparten sus registros**: ambos ven y corrigen planillas, polilla, encomiendas y gastos de esa vuelta (se guarda quién registró y quién corrigió). Nunca ven totales (ver *Privacidad de resultados*). No pueden editar una vuelta cerrada. Además:
   - **Crea y finaliza vueltas.** Cualquiera de los dos la puede crear, pero solo hay **una vuelta en curso por buseta**: no se empieza otra sin finalizar la anterior. Mientras exista, se sigue registrando en ella terminal por terminal. Todo conductor ve la vuelta en curso y puede unirse o reemplazar a un compañero en un puesto (`unirse_a_vuelta()`). Si se equivocó al finalizar, puede reabrirla mientras el admin no la haya cerrado.
   - **Repuestos:** ve todo el historial de la buseta; crea, edita y "elimina" los que registró. Eliminar pide confirmación ("¿Seguro que quieres eliminarlo?") y por dentro **anula** el registro con un motivo; no hay borrado físico.
@@ -287,7 +291,7 @@ app/
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
       acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
-                         # pantalla-vuelta.tsx y formulario-planilla.tsx: diseño provisional
+                         # pantalla-vuelta.tsx, formulario-planilla.tsx y polilla.tsx: diseño provisional
   sin-conexion/          # respaldo offline del service worker
   api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
   serwist/[path]/        # sirve el service worker
@@ -309,7 +313,7 @@ lib/
     fotos.ts, enviar.ts, ciclo.ts  # fotos comprimidas, envío HTTP, ciclo automático (subir → enviar → descargar)
     descargar.ts         # trae vuelta en curso, trayectos, planillas, buseta y conductores
     vista.ts             # arma la pantalla de la vuelta desde lo local (puro, con tests)
-    acciones-conductor.ts # iniciar vuelta/trayecto, planilla, varada, finalizar (sin señal)
+    acciones-conductor.ts # iniciar vuelta/trayecto, planilla, pasajero, encomienda, varada, finalizar (sin señal)
     use-consulta.ts      # hook: consulta reactiva a la base local
   supabase/              # clientes servidor/navegador/proxy + tipos generados
   validaciones/          # esquemas Zod compartidos formulario ↔ servidor (admin.ts: filtros y acciones del panel)
@@ -326,7 +330,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 1. ✅ Proyecto base, Supabase, auth con roles (admin / conductor), RLS, PWA instalable. También están las reglas de dominio puras con tests y los esquemas Zod.
 2. ✅ Capa offline (IndexedDB + cola de sincronización). Cubierta con tests (cola, fusión de vuelta, endpoint) y probada contra la base real con dos conductores simulados (transacción revertida). Falta probarla en un Android real sin señal, con cuentas reales, cuando estén las pantallas del paso 3.
 3. ✅ Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Conductor (diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Admin (diseño provisional, requiere conexión): lista con filtros, detalle con quién registró y corrigió cada planilla, foto con URL firmada, corregir o eliminar (anular) planillas, cambiar conductores y tipo, reabrir una finalizada. Falta probar el flujo del conductor en un Android real sin señal.
-4. Polilla y encomiendas + tabla de tarifas + cálculo de ingreso real.
+4. ✅ Polilla y encomiendas + cálculo de ingreso real (sin tarifas, por decisión del dueño). Conductor (diseño provisional, sin señal): pasajeros de vía y encomiendas por trayecto, corregir y eliminar (anular) con confirmación, sin ninguna suma. Admin: polilla de cada trayecto con quién registró, "se lo quedó el conductor" resaltado, eliminar, e ingresos de la vuelta desde `reporte_vueltas`. Probado contra la base en una transacción revertida: la vista y `liquidar()` coinciden. Falta probar la pantalla del conductor con su cuenta real.
 5. Gastos fijos (configuración) y variables (ACPM, ligas, extras) + liquidación y cuadre, solo para admin.
 6. Repuestos con foto.
 7. Programación mensual (digitada) + regresos pendientes + salidas adicionales. La lógica pura ya está en `lib/dominio/programacion`. Falta en la base: hoy `marcar_salida_realizada()` solo marca la salida de la ida, porque el enlace con la programación está en `vueltas`. Hay que enlazar `trayectos` con `programacion_salidas` para que el regreso también quede `realizada`.
@@ -358,6 +362,9 @@ _(ninguna por ahora)_
 - Encomiendas: no van dentro del neto de la planilla; son dinero suelto.
 - ACPM: lo paga el conductor con el dinero que le dan las terminales.
 - Conductores: cada uno tiene su cuenta. Los dos de una vuelta comparten los registros de esa vuelta, y el conductor de una vuelta puede cambiar.
+- Tarifas: no se usan. El facturado lo digita el conductor y el sobrante va a la caja según su conciencia.
+- Pasajero que pagó menos que la taquilla: no pasa, porque el tiquete se hace por lo que pagó (no hay sobrante negativo).
+- Encomiendas: se registra el neto final; si la recibió un taquillero, ya descontó su porcentaje.
 - Adicional: la buseta siempre puede devolverse. Los casos borde se resolvieron con criterio técnico (Módulo 3).
 - Quién crea la vuelta: cualquier conductor. Solo una en curso por buseta; hay que finalizarla para empezar otra.
 - Varadas con dinero: aunque se registre dinero, una varada queda toda en $0 (ni gastos ni ganancias).

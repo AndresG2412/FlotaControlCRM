@@ -4,7 +4,15 @@ import { useState, useTransition } from "react";
 import type { Persona, PlanillaDetalle } from "@/lib/admin/vueltas";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
 import type { TipoVuelta } from "@/lib/dominio/vuelta";
-import { actualizarVuelta, anularPlanilla, corregirPlanilla, reabrirVuelta, type Resultado } from "../acciones";
+import {
+  actualizarVuelta,
+  anularEncomienda,
+  anularPasajero,
+  anularPlanilla,
+  corregirPlanilla,
+  reabrirVuelta,
+  type Resultado,
+} from "../acciones";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
 const campo = "h-10 w-full rounded-xl border border-borde bg-superficie px-3 text-sm";
@@ -245,5 +253,43 @@ export function ReabrirVuelta({ id }: { id: string }) {
       )}
       <MensajeError mensaje={error} />
     </div>
+  );
+}
+
+/** Eliminar (anular con motivo) un pasajero de vía o una encomienda. */
+export function EliminarDePolilla({ tipo, id }: { tipo: "pasajero" | "encomienda"; id: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const { pendiente, error, ejecutar } = useAccion();
+  const que = tipo === "pasajero" ? "este pasajero" : "esta encomienda";
+
+  if (!abierto) {
+    return (
+      <button type="button" className={botonPeligro} onClick={() => setAbierto(true)}>Eliminar</button>
+    );
+  }
+
+  function eliminar(e: React.FormEvent) {
+    e.preventDefault();
+    const accion = tipo === "pasajero" ? anularPasajero : anularEncomienda;
+    ejecutar(() => accion({ id, motivo_anulacion: motivo.trim() }), () => setAbierto(false));
+  }
+
+  return (
+    <form onSubmit={eliminar} className="mt-1 flex flex-col gap-2 rounded-xl border border-perdida p-3">
+      <p className="text-sm font-medium">¿Seguro que quieres eliminar {que}?</p>
+      <p className="text-xs text-texto-suave">No se borra: queda anulado con el motivo y deja de sumar en la vuelta.</p>
+      <label className="flex flex-col gap-1 text-sm">
+        Motivo
+        <input className={campo} value={motivo} maxLength={300} required onChange={(e) => setMotivo(e.target.value)} placeholder="Repetido, error de monto…" />
+      </label>
+      <MensajeError mensaje={error} />
+      <div className="flex gap-2">
+        <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
+        <button type="submit" className={botonPeligro} disabled={pendiente || !motivo.trim()}>
+          {pendiente ? "Eliminando…" : "Sí, eliminar"}
+        </button>
+      </div>
+    </form>
   );
 }

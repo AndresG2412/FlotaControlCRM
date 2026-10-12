@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import {
   detalleVuelta,
   listarConductores,
+  type EncomiendaDetalle,
+  type IngresosVuelta,
+  type PasajeroDetalle,
   type PlanillaDetalle,
   type TrayectoDetalle,
 } from "@/lib/admin/vueltas";
@@ -10,14 +13,15 @@ import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
 import { formatearFechaHora } from "@/lib/dominio/fechas";
 import type { TerminalConPlanilla } from "@/lib/dominio/planillas";
-import { TERMINALES } from "@/lib/dominio/ruta";
+import { buscarTramo, TERMINALES } from "@/lib/dominio/ruta";
 import { accionesAdmin } from "@/lib/dominio/vuelta";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "../etiquetas";
-import { AccionesPlanilla, EditarVuelta, ReabrirVuelta } from "./controles";
+import { AccionesPlanilla, EditarVuelta, EliminarDePolilla, ReabrirVuelta } from "./controles";
 
 export const metadata = { title: "Detalle de vuelta" };
 
-// Diseño provisional. Aquí no hay totales de dinero: son del paso 5.
+// Diseño provisional. Los ingresos salen de reporte_vueltas; gastos, liquidación
+// y cuadre son del paso 5.
 const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
 
 export default async function DetalleVuelta({ params }: PageProps<"/admin/vueltas/[id]">) {
@@ -70,6 +74,8 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
         {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
       </div>
 
+      <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
+
       {vuelta.faltan.map((sentido) => (
         <p key={sentido} className={`${tarjeta} text-aviso`}>
           {sentido === "ida" ? "La ida" : "El regreso"} no se ha registrado.
@@ -109,6 +115,8 @@ function Trayecto({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editab
           <Terminal key={terminal.codigo} terminal={terminal} editable={editable} />
         ))}
       </ul>
+
+      <Polilla trayecto={t} editable={editable} />
 
       {t.anuladas.length > 0 && (
         <details className="text-sm">
@@ -180,6 +188,144 @@ function Autoria({ planilla: p }: { planilla: PlanillaDetalle }) {
       Registró {p.registradoPor} · {formatearFechaHora(p.ocurrido_en)} (llegó {formatearFechaHora(p.sincronizado_en)})
       {p.horaSospechosa && <strong className="text-aviso"> · revisar hora</strong>}
       {p.actualizadoPor && p.actualizado_en && ` · Corrigió ${p.actualizadoPor} · ${formatearFechaHora(p.actualizado_en)}`}
+    </span>
+  );
+}
+
+function Ingresos({ ingresos, varada }: { ingresos: IngresosVuelta | null; varada: boolean }) {
+  if (!ingresos) return null;
+  const fila = (termino: string, valor: number, fuerte = false) => (
+    <div className="flex justify-between gap-2">
+      <dt className={fuerte ? "font-semibold" : "text-texto-suave"}>{termino}</dt>
+      <dd className={`monto ${fuerte ? "font-semibold" : ""}`}>{formatearPesos(valor)}</dd>
+    </div>
+  );
+  return (
+    <div className={tarjeta}>
+      <h2 className="text-lg font-semibold">Ingresos</h2>
+      {varada && <p className="text-sm text-aviso">Varada: no se liquida, todo queda en $0.</p>}
+      <dl className="flex flex-col gap-1 text-sm">
+        {fila("Planillas (neto)", ingresos.planillas)}
+        {fila("Polilla (sobrantes a la caja)", ingresos.polilla)}
+        {fila("Encomiendas", ingresos.encomiendas)}
+        {fila("Ingreso real", ingresos.ingresoReal, true)}
+      </dl>
+      <p className="monto text-sm">
+        Se quedó el conductor: <strong>{formatearPesos(ingresos.quedoConductor)}</strong>{" "}
+        <span className="text-texto-suave">(no suma al ingreso)</span>
+      </p>
+      <p className="text-xs text-texto-suave">Gastos, liquidación y cuadre: próximamente.</p>
+    </div>
+  );
+}
+
+const nombreTramo = (id: string) => {
+  const t = buscarTramo(id);
+  return t ? `${TERMINALES[t.origen]} → ${TERMINALES[t.destino]}` : id;
+};
+
+function Polilla({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editable: boolean }) {
+  const pasajeros = t.pasajeros.filter((p) => p.estado === "activo");
+  const encomiendas = t.encomiendas.filter((e) => e.estado === "activa");
+  const eliminados = [
+    ...t.pasajeros.filter((p) => p.estado === "anulado"),
+    ...t.encomiendas.filter((e) => e.estado === "anulada"),
+  ];
+  return (
+    <div className="flex flex-col gap-2 border-t border-borde pt-3">
+      <h3 className="font-semibold">Polilla</h3>
+      {pasajeros.length === 0 && encomiendas.length === 0 && (
+        <p className="text-sm text-texto-suave">Sin pasajeros de vía ni encomiendas.</p>
+      )}
+      <ul className="flex flex-col gap-2">
+        {pasajeros.map((p) => (
+          <li key={p.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+            <Pasajero pasajero={p} />
+            <AutoriaRegistro registro={p} />
+            {editable && <EliminarDePolilla tipo="pasajero" id={p.id} />}
+          </li>
+        ))}
+        {encomiendas.map((e) => (
+          <li key={e.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+            <Encomienda encomienda={e} />
+            <AutoriaRegistro registro={e} />
+            {editable && <EliminarDePolilla tipo="encomienda" id={e.id} />}
+          </li>
+        ))}
+      </ul>
+      {eliminados.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-texto-suave">Eliminados ({eliminados.length})</summary>
+          <ul className="mt-2 flex flex-col gap-2">
+            {eliminados.map((r) => (
+              <li key={r.id} className="rounded-xl border border-borde p-3 opacity-80">
+                {"tramo_id" in r ? <Pasajero pasajero={r} /> : <Encomienda encomienda={r} />}
+                <span className="text-texto-suave">Motivo: {r.motivo_anulacion}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function Pasajero({ pasajero: p }: { pasajero: PasajeroDetalle }) {
+  return (
+    <div className="flex flex-col gap-0.5 text-sm">
+      <span className="font-medium">
+        Pasajero · {nombreTramo(p.tramo_id)} · va a {TERMINALES[p.destino]}
+      </span>
+      <span className="monto">
+        Cobró {formatearPesos(p.monto_cobrado)}
+        {p.facturado && p.terminal_facturacion
+          ? ` · facturó ${formatearPesos(p.monto_facturado)} en ${TERMINALES[p.terminal_facturacion]}`
+          : " · no pasó por terminal"}
+        {" · "}sobrante {formatearPesos(p.sobrante)}{" "}
+        {p.destino_sobrante === "polilla" ? (
+          <span>a la caja</span>
+        ) : (
+          <strong className="text-aviso">se lo quedó el conductor</strong>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function Encomienda({ encomienda: e }: { encomienda: EncomiendaDetalle }) {
+  const donde = e.recibida_en_terminal
+    ? `en ${TERMINALES[e.recibida_en_terminal]}`
+    : `en la vía (${nombreTramo(e.recibida_en_tramo ?? "")})`;
+  return (
+    <div className="flex flex-col gap-0.5 text-sm">
+      <span className="font-medium">
+        Encomienda a {TERMINALES[e.destino]}
+        {e.descripcion ? ` · ${e.descripcion}` : ""}
+      </span>
+      <span className="monto">
+        {formatearPesos(e.monto)} neto · recibida {donde}
+      </span>
+    </div>
+  );
+}
+
+function AutoriaRegistro({
+  registro: r,
+}: {
+  registro: {
+    registradoPor: string;
+    ocurrido_en: string;
+    sincronizado_en: string;
+    horaSospechosa: boolean;
+    actualizadoPor: string | null;
+    actualizado_en: string | null;
+  };
+}) {
+  return (
+    <span className="text-xs text-texto-suave">
+      Registró {r.registradoPor} · {formatearFechaHora(r.ocurrido_en)} (llegó {formatearFechaHora(r.sincronizado_en)})
+      {r.horaSospechosa && <strong className="text-aviso"> · revisar hora</strong>}
+      {r.actualizadoPor && r.actualizado_en && ` · Corrigió ${r.actualizadoPor} · ${formatearFechaHora(r.actualizado_en)}`}
     </span>
   );
 }

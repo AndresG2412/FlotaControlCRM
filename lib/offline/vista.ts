@@ -3,7 +3,8 @@
 // Puro (sin Dexie ni React) para poder probarlo.
 
 import { estadoTerminales, type EstadoTerminal } from "@/lib/dominio/planillas";
-import type { CodigoTerminal, Sentido } from "@/lib/dominio/ruta";
+import { sobrante, tramoActual, type DestinoSobrante } from "@/lib/dominio/polilla";
+import type { CodigoTerminal, Sentido, Tramo } from "@/lib/dominio/ruta";
 import type { RegistroLocal } from "./db";
 
 export type VueltaLocal = {
@@ -38,6 +39,34 @@ export type PlanillaLocal = {
   foto_path?: string | null;
 };
 
+export type PasajeroLocal = {
+  id: string;
+  ocurrido_en?: string;
+  trayecto_id: string;
+  tramo_id: string;
+  destino: CodigoTerminal;
+  monto_cobrado: number;
+  facturado: boolean;
+  terminal_facturacion?: CodigoTerminal | null;
+  monto_facturado: number;
+  destino_sobrante: DestinoSobrante;
+};
+
+export type EncomiendaLocal = {
+  id: string;
+  ocurrido_en?: string;
+  trayecto_id: string;
+  recibida_en_terminal?: CodigoTerminal | null;
+  recibida_en_tramo?: string | null;
+  destino: CodigoTerminal;
+  descripcion?: string | null;
+  monto: number;
+};
+
+/** Un pasajero con su sobrante (registro individual: se puede mostrar al conductor). */
+export type PasajeroVista = PasajeroLocal & { sobrante: number; sinEnviar: boolean };
+export type EncomiendaVista = EncomiendaLocal & { sinEnviar: boolean };
+
 export type TerminalVista = {
   codigo: CodigoTerminal;
   estado: EstadoTerminal;
@@ -48,6 +77,11 @@ export type TerminalVista = {
 export type TrayectoVista = {
   trayecto: TrayectoLocal;
   terminales: TerminalVista[];
+  /** Pasajeros de vía y encomiendas, uno por uno. Nunca se suman en el celular. */
+  pasajeros: PasajeroVista[];
+  encomiendas: EncomiendaVista[];
+  /** Tramo por el que va la buseta (para preseleccionarlo al registrar polilla). */
+  tramoActual: Tramo;
   sinEnviar: boolean;
 };
 
@@ -63,6 +97,10 @@ export type VistaVuelta = {
   sinEnviar: boolean;
 };
 
+/** En el orden en que pasaron (hora del celular). */
+const porHora = (a: { ocurrido_en?: string }, b: { ocurrido_en?: string }) =>
+  (a.ocurrido_en ?? "").localeCompare(b.ocurrido_en ?? "");
+
 const deTabla = <T>(registros: readonly RegistroLocal[], tabla: RegistroLocal["tabla"]) =>
   registros.filter((r) => r.tabla === tabla && !r.anulado).map((r) => r.datos as T);
 
@@ -77,6 +115,8 @@ export function armarVista(
 
   const trayectos = deTabla<TrayectoLocal>(registros, "trayectos").filter((t) => t.vuelta_id === vuelta.id);
   const planillas = deTabla<PlanillaLocal>(registros, "planillas");
+  const pasajerosTodos = deTabla<PasajeroLocal>(registros, "polilla_pasajeros");
+  const encomiendasTodas = deTabla<EncomiendaLocal>(registros, "encomiendas");
 
   const armarTrayecto = (sentido: Sentido): TrayectoVista | null => {
     const trayecto = trayectos.find((t) => t.sentido === sentido);
@@ -86,7 +126,32 @@ export function armarVista(
     const terminales = estadoTerminales(sentido, trayecto.terminal_fin, delTrayecto).map(
       (t): TerminalVista => ({ ...t, sinEnviar: t.planilla ? sinEnviar.has(t.planilla.id) : false }),
     );
-    return { trayecto, terminales, sinEnviar: sinEnviar.has(trayecto.id) || terminales.some((t) => t.sinEnviar) };
+    // El sobrante se calcula aquí: un registro recién creado no trae la columna generada.
+    const pasajeros = pasajerosTodos
+      .filter((p) => p.trayecto_id === trayecto.id)
+      .sort(porHora)
+      .map((p): PasajeroVista => ({
+        ...p,
+        sobrante: sobrante({ montoCobrado: p.monto_cobrado, montoFacturado: p.monto_facturado }),
+        sinEnviar: sinEnviar.has(p.id),
+      }));
+    const encomiendas = encomiendasTodas
+      .filter((e) => e.trayecto_id === trayecto.id)
+      .sort(porHora)
+      .map((e): EncomiendaVista => ({ ...e, sinEnviar: sinEnviar.has(e.id) }));
+    const registradas = terminales.filter((t) => t.estado !== "pendiente").map((t) => t.codigo);
+    return {
+      trayecto,
+      terminales,
+      pasajeros,
+      encomiendas,
+      tramoActual: tramoActual(sentido, registradas),
+      sinEnviar:
+        sinEnviar.has(trayecto.id) ||
+        terminales.some((t) => t.sinEnviar) ||
+        pasajeros.some((p) => p.sinEnviar) ||
+        encomiendas.some((e) => e.sinEnviar),
+    };
   };
 
   const ida = armarTrayecto("ida");

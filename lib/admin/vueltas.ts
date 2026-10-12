@@ -4,6 +4,7 @@ import { exigirRol } from "@/lib/auth/sesion";
 import { rangoDelMes, horaSospechosa } from "@/lib/dominio/fechas";
 import { estadoTerminales, resumenPlanillas, type ConteoPlanillas, type TerminalConPlanilla } from "@/lib/dominio/planillas";
 import { esSentido, esTerminal, type CodigoTerminal, type Sentido } from "@/lib/dominio/ruta";
+import type { DestinoSobrante } from "@/lib/dominio/polilla";
 import {
   esEstadoVuelta,
   esTipoVuelta,
@@ -16,7 +17,8 @@ import type { FiltrosVueltas } from "@/lib/validaciones/admin";
 
 // Lectura de vueltas para el panel del admin. Usa la sesión del admin (la RLS
 // aplica) y cada función exportada verifica el rol por su cuenta (AUTZ-6).
-// Aquí no hay totales de dinero: son del paso 5 (liquidación y cuadre).
+// Los totales de ingreso salen solo de la vista reporte_vueltas (nunca se
+// recalculan aquí). Gastos, liquidación y cuadre son del paso 5.
 
 /** Las URLs firmadas de fotos vencen pronto; recargar la página genera otras. */
 const SEGUNDOS_URL_FOTO = 10 * 60;
@@ -56,6 +58,49 @@ export type PlanillaDetalle = {
   horaSospechosa: boolean;
 };
 
+type Autoria = {
+  ocurrido_en: string;
+  sincronizado_en: string;
+  actualizado_en: string | null;
+  registradoPor: string;
+  actualizadoPor: string | null;
+  horaSospechosa: boolean;
+};
+
+export type PasajeroDetalle = Autoria & {
+  id: string;
+  tramo_id: string;
+  destino: CodigoTerminal;
+  monto_cobrado: number;
+  facturado: boolean;
+  terminal_facturacion: CodigoTerminal | null;
+  monto_facturado: number;
+  sobrante: number;
+  destino_sobrante: DestinoSobrante;
+  estado: "activo" | "anulado";
+  motivo_anulacion: string | null;
+};
+
+export type EncomiendaDetalle = Autoria & {
+  id: string;
+  recibida_en_terminal: CodigoTerminal | null;
+  recibida_en_tramo: string | null;
+  destino: CodigoTerminal;
+  descripcion: string | null;
+  monto: number;
+  estado: "activa" | "anulada";
+  motivo_anulacion: string | null;
+};
+
+/** Ingresos de la vuelta según reporte_vueltas (solo admin). */
+export type IngresosVuelta = {
+  planillas: number;
+  polilla: number;
+  encomiendas: number;
+  ingresoReal: number;
+  quedoConductor: number;
+};
+
 export type TrayectoDetalle = {
   id: string;
   sentido: Sentido;
@@ -64,6 +109,8 @@ export type TrayectoDetalle = {
   terminal_fin: CodigoTerminal | null;
   terminales: TerminalConPlanilla<PlanillaDetalle>[];
   anuladas: PlanillaDetalle[];
+  pasajeros: PasajeroDetalle[];
+  encomiendas: EncomiendaDetalle[];
   ocurrido_en: string;
   registradoPor: string;
 };
@@ -86,6 +133,7 @@ export type VueltaDetalle = {
   ida: TrayectoDetalle | null;
   regreso: TrayectoDetalle | null;
   faltan: Sentido[];
+  ingresos: IngresosVuelta | null;
 };
 
 type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
@@ -176,6 +224,15 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
              id, terminal, emitida, neto, numero, pasajeros, motivo_sin_planilla, foto_path,
              estado, motivo_anulacion, ocurrido_en, sincronizado_en, registrado_por,
              actualizado_en, actualizado_por
+           ),
+           polilla_pasajeros (
+             id, tramo_id, destino, monto_cobrado, facturado, terminal_facturacion, monto_facturado,
+             sobrante, destino_sobrante, estado, motivo_anulacion, ocurrido_en, sincronizado_en,
+             registrado_por, actualizado_en, actualizado_por
+           ),
+           encomiendas (
+             id, recibida_en_terminal, recibida_en_tramo, destino, descripcion, monto, estado,
+             motivo_anulacion, ocurrido_en, sincronizado_en, registrado_por, actualizado_en, actualizado_por
            )
          )`,
       )
@@ -184,6 +241,7 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
     nombres(supabase),
   ]);
   if (error) throw new Error("No se pudo leer la vuelta");
+  const ingresos = await ingresosDeVuelta(supabase, id);
   if (!v || !esEstadoVuelta(v.estado) || !esTipoVuelta(v.tipo)) return null;
 
   const fotos = await urlsDeFotos(
@@ -217,6 +275,62 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
         },
       ];
     });
+    const autoria = (r: {
+      ocurrido_en: string;
+      sincronizado_en: string;
+      actualizado_en: string | null;
+      registrado_por: string;
+      actualizado_por: string | null;
+    }): Autoria => ({
+      ocurrido_en: r.ocurrido_en,
+      sincronizado_en: r.sincronizado_en,
+      actualizado_en: r.actualizado_en,
+      registradoPor: nombreDe(mapa, r.registrado_por) ?? "Usuario desconocido",
+      actualizadoPor: nombreDe(mapa, r.actualizado_por),
+      horaSospechosa: horaSospechosa(new Date(r.ocurrido_en), new Date(r.sincronizado_en)),
+    });
+    const porHora = (a: { ocurrido_en: string }, b: { ocurrido_en: string }) => a.ocurrido_en.localeCompare(b.ocurrido_en);
+    const pasajeros = t.polilla_pasajeros
+      .flatMap((p): PasajeroDetalle[] =>
+        esTerminal(p.destino)
+          ? [
+              {
+                ...autoria(p),
+                id: p.id,
+                tramo_id: p.tramo_id,
+                destino: p.destino,
+                monto_cobrado: p.monto_cobrado,
+                facturado: p.facturado,
+                terminal_facturacion: esTerminal(p.terminal_facturacion) ? p.terminal_facturacion : null,
+                monto_facturado: p.monto_facturado,
+                sobrante: p.sobrante ?? p.monto_cobrado - p.monto_facturado,
+                destino_sobrante: p.destino_sobrante === "conductor" ? "conductor" : "polilla",
+                estado: p.estado === "anulado" ? "anulado" : "activo",
+                motivo_anulacion: p.motivo_anulacion,
+              },
+            ]
+          : [],
+      )
+      .sort(porHora);
+    const encomiendas = t.encomiendas
+      .flatMap((e): EncomiendaDetalle[] =>
+        esTerminal(e.destino)
+          ? [
+              {
+                ...autoria(e),
+                id: e.id,
+                recibida_en_terminal: esTerminal(e.recibida_en_terminal) ? e.recibida_en_terminal : null,
+                recibida_en_tramo: e.recibida_en_tramo,
+                destino: e.destino,
+                descripcion: e.descripcion,
+                monto: e.monto,
+                estado: e.estado === "anulada" ? "anulada" : "activa",
+                motivo_anulacion: e.motivo_anulacion,
+              },
+            ]
+          : [],
+      )
+      .sort(porHora);
     return [
       {
         id: t.id,
@@ -226,6 +340,8 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
         terminal_fin: terminalFin,
         terminales: estadoTerminales(t.sentido, terminalFin, planillas.filter((p) => p.estado === "activa")),
         anuladas: planillas.filter((p) => p.estado === "anulada"),
+        pasajeros,
+        encomiendas,
         ocurrido_en: t.ocurrido_en,
         registradoPor: nombreDe(mapa, t.registrado_por) ?? "Usuario desconocido",
       },
@@ -250,6 +366,27 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
     ida: trayectos.find((t) => t.sentido === "ida") ?? null,
     regreso: trayectos.find((t) => t.sentido === "regreso") ?? null,
     faltan: trayectosFaltantes(v.tipo, trayectos.map((t) => t.sentido)),
+    ingresos,
+  };
+}
+
+/**
+ * Ingresos de una vuelta desde reporte_vueltas: es la única fuente de totales de
+ * dinero (la vista devuelve 0 filas a quien no sea admin). Una varada da todo 0.
+ */
+async function ingresosDeVuelta(supabase: Cliente, id: string): Promise<IngresosVuelta | null> {
+  const { data, error } = await supabase
+    .from("reporte_vueltas")
+    .select("ingreso_planillas, ingreso_polilla, ingreso_encomiendas, ingreso_real, quedo_conductor")
+    .eq("vuelta_id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    planillas: data.ingreso_planillas ?? 0,
+    polilla: data.ingreso_polilla ?? 0,
+    encomiendas: data.ingreso_encomiendas ?? 0,
+    ingresoReal: data.ingreso_real ?? 0,
+    quedoConductor: data.quedo_conductor ?? 0,
   };
 }
 

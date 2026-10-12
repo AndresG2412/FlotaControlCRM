@@ -182,3 +182,48 @@ export async function reabrirVuelta(entrada: { id: string }): Promise<Resultado>
   revalidar(datos.data.id);
   return { error: null };
 }
+
+/**
+ * "Eliminar" un pasajero de vía o una encomienda: queda anulado con su motivo
+ * (no hay borrado físico). Solo si la vuelta no está cerrada.
+ */
+async function anularDePolilla(
+  tabla: "polilla_pasajeros" | "encomiendas",
+  entrada: { id: string; motivo_anulacion: string },
+): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaAnulacion.strict().safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const activo = tabla === "polilla_pasajeros" ? "activo" : "activa";
+  const anulado = tabla === "polilla_pasajeros" ? "anulado" : "anulada";
+
+  const { data: actual } = await supabase
+    .from(tabla)
+    .select("id, estado, trayectos ( vuelta_id )")
+    .eq("id", datos.data.id)
+    .maybeSingle();
+  if (!actual?.trayectos || actual.estado !== activo) return { error: "El registro no existe o ya fue eliminado" };
+  const bloqueo = await vueltaEditable(supabase, actual.trayectos.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const { data, error } = await supabase
+    .from(tabla)
+    .update({ estado: anulado, motivo_anulacion: datos.data.motivo_anulacion })
+    .eq("id", datos.data.id)
+    .eq("estado", activo)
+    .select("id");
+  if (error || !data.length) return { error: "No se pudo eliminar" };
+
+  revalidar(actual.trayectos.vuelta_id);
+  return { error: null };
+}
+
+export async function anularPasajero(entrada: { id: string; motivo_anulacion: string }): Promise<Resultado> {
+  return anularDePolilla("polilla_pasajeros", entrada);
+}
+
+export async function anularEncomienda(entrada: { id: string; motivo_anulacion: string }): Promise<Resultado> {
+  return anularDePolilla("encomiendas", entrada);
+}

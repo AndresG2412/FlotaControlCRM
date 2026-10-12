@@ -87,15 +87,20 @@ async function guardar(supabase: Cliente, uid: string, op: GuardarValidado): Pro
       return supabase.from("vueltas").upsert({ ...op.datos, ...base }).select("id");
     case "trayectos":
       return supabase.from("trayectos").upsert({ ...op.datos, ...base }).select("id");
+    // En planillas, polilla y encomiendas, sentido solo sirve para validar contra
+    // la ruta; no es columna de la tabla.
     case "planillas": {
-      // sentido solo sirve para validar la terminal; no es columna de planillas.
       const { sentido, ...fila } = op.datos;
       return supabase.from("planillas").upsert({ ...fila, ...base }).select("id");
     }
-    case "polilla_pasajeros":
-      return supabase.from("polilla_pasajeros").upsert({ ...op.datos, ...base }).select("id");
-    case "encomiendas":
-      return supabase.from("encomiendas").upsert({ ...op.datos, ...base }).select("id");
+    case "polilla_pasajeros": {
+      const { sentido, ...fila } = op.datos;
+      return supabase.from("polilla_pasajeros").upsert({ ...fila, ...base }).select("id");
+    }
+    case "encomiendas": {
+      const { sentido, ...fila } = op.datos;
+      return supabase.from("encomiendas").upsert({ ...fila, ...base }).select("id");
+    }
     case "gastos_variables":
       return supabase.from("gastos_variables").upsert({ ...op.datos, ...base }).select("id");
     case "repuestos":
