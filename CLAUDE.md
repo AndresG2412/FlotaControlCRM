@@ -92,6 +92,10 @@ Ejemplo: un pasajero sube cerca de Florencia, va a Cali y paga $80.000. En Pital
 - La salida programada del día siguiente queda **cancelada por adicional** (marcada, nunca borrada), porque la buseta está en otra ciudad.
 - Esa salida cancelada traía su propio regreso, y ese regreso se **hereda**. Resultado: la buseta tiene una **ventana de regreso** desde el día siguiente a la adicional hasta el día del regreso heredado.
 - Ejemplo: adicional el miércoles → se cancela la ida programada del jueves → puede regresar el jueves; si el jueves no hay pasajeros, se queda en Cali y regresa el viernes (el regreso que le tocaba a la ida del jueves).
+- La regla es simétrica: un regreso adicional cancela el regreso programado del día siguiente.
+- Si el día siguiente no había nada programado, no se cancela nada y la ventana es solo el día siguiente.
+- La buseta **siempre puede devolverse**: pasada la ventana, el regreso sigue pendiente y se marca como "atrasado".
+- Implementado en `lib/dominio/programacion` (`salidaQueCancela`, `regresosEsperados`, `calendarioDelMes`). Un regreso se enlaza con la ida si es el primer regreso vigente desde el día de la ida y antes de la siguiente ida.
 
 ### Módulo 4 — Gastos y liquidación de la vuelta (solo admin)
 
@@ -124,10 +128,17 @@ liquidacion(vuelta)    = ingreso_real − gastos_minimos      ← ganancia (verd
 - Una **varada** solo se **registra** como vuelta de tipo `varada` (fecha, trayecto parcial, conductores, nota) para el historial ("el carro salió, pero no hubo base"). **No lleva gastos, ingresos ni pagos: todo en $0** y no se liquida.
 
 **Cuadre de caja** (al cerrar la vuelta):
+
+El conductor maneja todo el dinero de la vuelta: en cada terminal le entregan el neto de la planilla en efectivo, cobra polilla y encomiendas, y de ahí paga los gastos (ACPM, ligas, peajes, su pago, etc.). Al final le entrega al dueño lo que queda.
+
 ```
-efectivo_esperado = Σ neto de planillas + Σ polilla + Σ encomiendas − gastos pagados en efectivo por los conductores
+efectivo_esperado = Σ neto de planillas + Σ polilla + Σ encomiendas − Σ gastos variables − Σ gastos fijos con se_paga_en_ruta
 diferencia        = efectivo_entregado (lo digita el admin) − efectivo_esperado
 ```
+
+- Todos los gastos variables salen del efectivo de la vuelta (el ACPM lo paga el conductor con lo que le dan las terminales).
+- Un gasto fijo con `se_paga_en_ruta = false` (lo paga el dueño aparte) resta en la liquidación pero no en el cuadre.
+- Las encomiendas **no** van dentro del neto de la planilla: son dinero suelto y suman aparte.
 
 ### Privacidad de resultados frente a los conductores (regla dura)
 
@@ -136,6 +147,7 @@ Los conductores **no pueden ver** ningún resultado: ni totales de la vuelta, ni
 - Se aplica en la base de datos (RLS y vistas/funciones de reportes accesibles solo para `admin`), no solo ocultándolo en la UI.
 - Ninguna respuesta de la API al conductor debe incluir campos calculados de dinero.
 - Ante cualquier pantalla nueva del conductor, verificar que no filtre totales.
+- El conductor sí marca, en cada pasajero, si el sobrante fue a polilla o se lo quedó (es él quien lo sabe). Lo que nunca ve es el **total** de lo que se quedó, ni el de ningún otro concepto.
 
 ### Módulo 5 — Repuestos
 
@@ -151,11 +163,16 @@ Sección aparte, independiente de las vueltas, para gastos periódicos de la bus
 - Campos: nombre, fecha de compra/pago, costo, fecha de recordatorio, fecha de vencimiento (opcional), notas, foto del comprobante (opcional).
 - En la fecha de recordatorio, el admin recibe un **correo** (Resend, disparado por un cron diario) y el pendiente aparece en el panel.
 - Al renovar, se registra un pago nuevo; el historial queda intacto.
+- Los conductores solo ven cuándo vence cada concepto (nombre y fechas), sin costos ni comprobantes. Lo exponen `vencimientos_buseta()`.
 
 ### Usuarios y roles
 
 - **admin**: el dueño. Ve y edita todo, configura tarifas, gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
-- **conductor**: cada conductor tiene su propia cuenta. Los dos conductores de una vuelta **comparten sus registros**: ambos ven y corrigen planillas, polilla, encomiendas y gastos de esa vuelta (se guarda quién registró y quién corrigió). Nunca ven totales (ver *Privacidad de resultados*). No pueden editar una vuelta cerrada.
+- **conductor**: cada conductor tiene su propia cuenta. Los dos conductores de una vuelta **comparten sus registros**: ambos ven y corrigen planillas, polilla, encomiendas y gastos de esa vuelta (se guarda quién registró y quién corrigió). Nunca ven totales (ver *Privacidad de resultados*). No pueden editar una vuelta cerrada. Además:
+  - **Crea y finaliza vueltas.** Cualquiera de los dos la puede crear, pero solo hay **una vuelta en curso por buseta**: no se empieza otra sin finalizar la anterior. Mientras exista, se sigue registrando en ella terminal por terminal. Todo conductor ve la vuelta en curso y puede unirse o reemplazar a un compañero en un puesto (`unirse_a_vuelta()`). Si se equivocó al finalizar, puede reabrirla mientras el admin no la haya cerrado.
+  - **Repuestos:** ve todo el historial de la buseta; crea, edita y "elimina" los que registró. Eliminar pide confirmación ("¿Seguro que quieres eliminarlo?") y por dentro **anula** el registro con un motivo; no hay borrado físico.
+  - **Vencimientos:** ve cuándo toca SOAT, seguro, tecnomecánica, etc. (`vencimientos_buseta()`: nombre y fechas, sin costos ni comprobantes). No ve ni edita los pagos.
+  - **Programación:** ve las salidas del mes, los regresos y las adicionales. Solo el admin la edita.
 - Hoy hay **una buseta** (placa WFV990, número 7900), pero todas las tablas llevan `buseta_id` para soportar más en el futuro sin rediseñar.
 
 ---
@@ -178,7 +195,7 @@ Se prioriza lo gratuito. Se eligió Postgres sobre Firebase porque el dominio es
 ### Base de datos (Supabase)
 
 - Proyecto: **FlotaControl**, ref `edrjtplwvprqlnbxafjp`, región `us-east-1`, organización "Gabosky" (de un colaborador).
-- Todo el esquema está en `supabase/migrations/` (aplicadas en orden). Cambios nuevos = migración nueva, nunca editar una ya aplicada.
+- Todo el esquema está en `supabase/migrations/` (aplicadas en orden). Cambios nuevos = migración nueva, nunca editar una ya aplicada. El nombre de cada archivo usa la misma versión con que quedó registrada en Supabase (`supabase_migrations.schema_migrations`), para que el CLI no las crea pendientes.
 - Roles en `public.perfiles` (`admin` | `conductor`). Los helpers de autorización viven en el esquema `private` (no expuesto por la API): `es_admin()`, `es_conductor()`, `puede_registrar_en_vuelta()`, etc.
 - Las reglas que tocan varias filas a la vez van en Postgres (atómicas): `cerrar_vuelta()`, `registrar_salida_adicional()`, copia de gastos fijos al crear la vuelta, marcar la salida como realizada.
 - Los totales de dinero solo salen de la vista `reporte_vueltas`, que devuelve 0 filas a quien no sea admin.
@@ -188,6 +205,12 @@ Se prioriza lo gratuito. Se eligió Postgres sobre Firebase porque el dominio es
 - Pendiente en el dashboard: desactivar el registro público (Auth → Sign In / Providers → "Allow new users to sign up" en off). Los usuarios los crea el admin.
 
 > Next.js 16 tiene cambios que rompen con versiones anteriores. Antes de escribir código de Next, revisar la guía correspondiente en `node_modules/next/dist/docs/` y respetar los avisos de deprecación.
+
+Decisiones ya tomadas con Next 16.4:
+- `middleware` ahora se llama **`proxy.ts`** (raíz). Solo refresca la sesión de Supabase y manda a `/login` si no hay usuario; el rol se verifica en los layouts con `exigirRol()` (`lib/auth/sesion.ts`) y, de verdad, en la RLS.
+- **Cache Components apagado** (`cacheComponents: false`): Serwist 9 no es compatible con él. Revisar cuando salga Serwist 10.
+- `LayoutProps` y `PageProps` son tipos globales que genera `next typegen` (lo corre `npm run typecheck`).
+- Sesión en el servidor: siempre `supabase.auth.getClaims()` (valida el JWT), nunca `getSession()`.
 
 ### PWA offline-first
 
@@ -201,7 +224,15 @@ Reglas offline:
 - La UI siempre muestra qué está **pendiente de sincronizar**; nada se pierde si se cierra la app.
 - Las fotos se guardan en IndexedDB y se suben después, comprimidas.
 - El panel del admin puede requerir conexión.
-- Antes de elegir la librería de service worker, verificar que sea compatible con la versión de Next/Turbopack.
+- Service worker: **Serwist 9** con `@serwist/turbopack`, compatible con Turbopack. El código está en `app/sw.ts`, se sirve desde la ruta `app/serwist/[path]` y lo registra `app/proveedor-sw.tsx`. Está apagado en `next dev`; para probarlo hay que usar `npm run build && npm start`. Sin conexión se muestra `/sin-conexion`.
+- El proveedor no recarga la página al volver la señal (`reloadOnOnline={false}`), para no perder un formulario a medio llenar.
+
+Diseño de la sincronización (paso 2):
+- Cada registro se guarda primero en IndexedDB (Dexie) con su UUID y `ocurrido_en`, y entra a una cola (`pendiente` → `enviando` → `sincronizado` | `error`).
+- Al haber señal, la cola envía los lotes a un Route Handler (`app/api/sincronizar`) que valida cada registro con los esquemas de `lib/validaciones/registros.ts` y hace `upsert` por `id` con la sesión del conductor. La RLS sigue mandando y reenviar no duplica.
+- Las fotos se suben aparte, directo a Storage desde el navegador. Las políticas del bucket solo dejan escribir en `{uid}/`. Al subir la foto, la cola actualiza el `foto_path` del registro.
+- Un rechazo de validación o de RLS deja el registro en `error`, visible para el conductor; nunca se borra solo.
+- **Conflicto de vuelta en curso:** si los dos conductores crean una vuelta sin señal, la segunda choca con `vueltas_una_en_curso` al sincronizar. La cola no la descarta: busca la vuelta en curso del servidor, le pasa sus trayectos y registros (y, si hace falta, al conductor con `unirse_a_vuelta()`) y marca la vuelta local como fusionada. Antes de crear una vuelta con señal, la app consulta primero si ya hay una en curso.
 
 ---
 
@@ -224,7 +255,7 @@ Reglas offline:
 ### Seguridad
 - RLS activo en **todas** las tablas desde la primera migración. El rol se valida en la base de datos, no solo en la UI.
 - La `service_role` key solo en servidor, jamás en código de cliente ni en variables `NEXT_PUBLIC_*`.
-- Toda escritura pasa por Server Actions / Route Handlers con validación Zod.
+- Toda escritura de datos pasa por Server Actions / Route Handlers con validación Zod. La única excepción es la subida de fotos a Storage desde el navegador, protegida por las políticas del bucket. La RLS y los checks de Postgres son la última defensa: aunque alguien llame la API de Supabase directamente, no puede saltárselos.
 - Usar la skill `seguridad-web` al diseñar tablas, auth, subida de archivos o antes de producción.
 
 ### UI
@@ -238,33 +269,43 @@ Reglas offline:
 - Tipos de la base generados (`supabase gen types`), no escritos a mano.
 - Sin `any`. La lógica de negocio (polilla, liquidación, cuadre, regresos, cancelación por adicional) va en funciones puras con tests.
 
-### Estructura propuesta
+### Estructura
 
 ```
+proxy.ts                 # refresca la sesión y protege /admin y /conductor
 app/
-  (auth)/login
-  admin/        # panel del dueño: vueltas, programación, tarifas, gastos fijos, repuestos, reportes
-  conductor/    # vuelta actual, registrar planilla/polilla/gastos, repuestos
+  (auth)/login           # login por usuario ("pedro" → pedro@flotacontrol.local)
+  admin/                 # panel del dueño (exigirRol('admin'))
+  conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
+  sin-conexion/          # respaldo offline del service worker
+  serwist/[path]/        # sirve el service worker
+  sw.ts                  # código del service worker
+  manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
 lib/
-  dominio/      # reglas de negocio puras + tests
-  offline/      # IndexedDB (Dexie) + cola de sincronización
-  supabase/     # clientes server/browser
-  validaciones/ # esquemas Zod
+  auth/                  # sesión, roles y acciones de login/salir
+  dominio/               # reglas de negocio puras + tests (sin React ni Next)
+    programacion/        # regresos, adicionales, calendario
+    vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0
+  offline/               # IndexedDB (Dexie) + cola de sincronización (paso 2)
+  supabase/              # clientes servidor/navegador/proxy + tipos generados
+  validaciones/          # esquemas Zod compartidos formulario ↔ servidor
 supabase/
   migrations/
 ```
+
+Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint`, `npm run build`. Regenerar tipos tras una migración con el MCP de Supabase o con `npm run tipos` (requiere `supabase login`).
 
 ---
 
 ## 4. Orden de construcción sugerido
 
-1. Proyecto base, Supabase, auth con roles (admin / conductor), RLS, PWA instalable.
+1. ✅ Proyecto base, Supabase, auth con roles (admin / conductor), RLS, PWA instalable. También están las reglas de dominio puras con tests y los esquemas Zod.
 2. Capa offline (IndexedDB + cola de sincronización), probada sin señal antes de construir encima.
 3. Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas).
 4. Polilla y encomiendas + tabla de tarifas + cálculo de ingreso real.
 5. Gastos fijos (configuración) y variables (ACPM, ligas, extras) + liquidación y cuadre, solo para admin.
 6. Repuestos con foto.
-7. Programación mensual (digitada) + regresos pendientes + salidas adicionales.
+7. Programación mensual (digitada) + regresos pendientes + salidas adicionales. La lógica pura ya está en `lib/dominio/programacion`. Falta en la base: hoy `marcar_salida_realizada()` solo marca la salida de la ida, porque el enlace con la programación está en `vueltas`. Hay que enlazar `trayectos` con `programacion_salidas` para que el regreso también quede `realizada`.
 8. Pagos y vencimientos con recordatorio por correo.
 9. Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor).
 
@@ -289,6 +330,14 @@ _(ninguna por ahora)_
 - Pasajeros de vía: basta con el tramo, no lugares concretos.
 - Datos de Firebase: se arranca de cero con la base de datos (no se migran datos históricos).
 - Repositorio: mismo repo de GitHub, rama `flotamain` creada desde cero (sin el código anterior).
+- El neto de la planilla lo recibe el conductor en efectivo en cada terminal. Él maneja el dinero de la vuelta y al final entrega el neto menos los gastos (Módulo 4, cuadre).
+- Encomiendas: no van dentro del neto de la planilla; son dinero suelto.
+- ACPM: lo paga el conductor con el dinero que le dan las terminales.
+- Conductores: cada uno tiene su cuenta. Los dos de una vuelta comparten los registros de esa vuelta, y el conductor de una vuelta puede cambiar.
+- Adicional: la buseta siempre puede devolverse. Los casos borde se resolvieron con criterio técnico (Módulo 3).
+- Quién crea la vuelta: cualquier conductor. Solo una en curso por buseta; hay que finalizarla para empezar otra.
+- Varadas con dinero: aunque se registre dinero, una varada queda toda en $0 (ni gastos ni ganancias).
+- Conductores: crean y finalizan vueltas; crean, editan y eliminan (anulan, con confirmación) repuestos; ven vencimientos y programación.
 
 ---
 

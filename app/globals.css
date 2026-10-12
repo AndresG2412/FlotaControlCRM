@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --fondo: #f5f5f4;
+  --superficie: #ffffff;
+  --texto: #1c1917;
+  --texto-suave: #57534e;
+  --borde: #d6d3d1;
+  --marca: #0f766e;
+  --marca-texto: #ffffff;
+  --ganancia: #15803d;
+  --perdida: #b91c1c;
+  --aviso: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #0c0a09;
+    --superficie: #1c1917;
+    --texto: #f5f5f4;
+    --texto-suave: #a8a29e;
+    --borde: #44403c;
+    --marca: #14b8a6;
+    --marca-texto: #042f2e;
+    --ganancia: #4ade80;
+    --perdida: #f87171;
+    --aviso: #fbbf24;
+  }
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-borde: var(--borde);
+  --color-marca: var(--marca);
+  --color-marca-texto: var(--marca-texto);
+  --color-ganancia: var(--ganancia);
+  --color-perdida: var(--perdida);
+  --color-aviso: var(--aviso);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Montos con dígitos de ancho fijo para que las columnas cuadren. */
+.monto {
+  font-variant-numeric: tabular-nums;
+}
