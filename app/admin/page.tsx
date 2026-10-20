@@ -11,7 +11,7 @@ const MODULOS: { titulo: string; detalle: string; icono: LucideIcon; href?: stri
   { titulo: "Programación", detalle: "Salidas del mes, regresos y adicionales", icono: CalendarDays, href: "/admin/programacion" },
   { titulo: "Repuestos", detalle: "Historial por categoría y fecha", icono: Wrench, href: "/admin/repuestos" },
   { titulo: "Pagos y vencimientos", detalle: "SOAT, seguro, tecnomecánica, cuota", icono: Receipt, href: "/admin/pagos" },
-  { titulo: "Reportes", detalle: "Por vuelta, mes y conductor", icono: ClipboardList },
+  { titulo: "Reportes", detalle: "Por vuelta, mes y conductor", icono: ClipboardList, href: "/admin/reportes" },
   { titulo: "Configuración", detalle: "Gastos fijos y categorías de repuestos", icono: Settings, href: "/admin/configuracion" },
 ];
 

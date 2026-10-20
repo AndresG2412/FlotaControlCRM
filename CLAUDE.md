@@ -299,6 +299,7 @@ app/
     repuestos/           # historial filtrable, último cambio por categoría, registrar/corregir/eliminar (acciones.ts también crea y desactiva categorías)
     programacion/        # calendario del mes, salidas, adicionales, regresos, trayectos sin salida
     pagos/               # vigentes con estado, renovar, comprobante, historial, eliminar
+    reportes/            # resumen del mes, por vuelta, por conductor, por mes; csv/ = descarga
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
       acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
@@ -319,6 +320,7 @@ lib/
     repuestos.ts         # historial de repuestos, categorías, buseta principal
     programacion.ts      # salidas del mes (con margen) y trayectos sin salida
     pagos.ts             # pagos periódicos con comprobante firmado
+    reportes.ts          # filas de reporte_vueltas + polilla "me lo quedé" por quién la registró
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
@@ -327,6 +329,7 @@ lib/
     planillas.ts         # estado de cada terminal (registrada, sin planilla, pendiente); conductor y admin
     repuestos.ts         # filtrar historial (días de Bogotá, sin tildes), último por categoría, revisar hora
     vencimientos.ts      # vigentes por concepto, estado, por recordar, correo (escapado)
+    reportes.ts          # resumir, porMes, porConductor, csvPorVuelta (sin guardar totales)
   offline/               # IndexedDB (Dexie) + cola de sincronización
     operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
     db.ts                # tablas locales: cola, registros, fotos, ajustes
@@ -359,7 +362,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 6. ✅ Repuestos con foto. Conductor (diseño provisional, sin señal): pestaña "Repuestos" con historial compartido de la buseta (búsqueda y filtro por categoría), "último cambio por categoría" (hace N días), registrar con categoría, foto, kilometraje, costo, taller, notas y "se cambió en ruta" (enlaza la vuelta en curso); corrige y elimina (anula con confirmación y motivo) solo los suyos. Admin: `/admin/repuestos` (historial filtrable por categoría, mes y texto, foto con URL firmada, quién registró, "revisar hora", registrar, corregir, eliminar) y `/admin/configuracion/categorias` (agregar, activar o desactivar; no se borran). El gasto "Arreglo en ruta" remite a Repuestos. Sin migraciones: la base ya tenía tablas y permisos. Falta probarlo con sesión real (la base estaba pausada al terminar).
 7. ✅ Programación mensual (digitada) + regresos pendientes + salidas adicionales. Migración `20261020123104_trayectos_con_salida_programada`: `trayectos.salida_programada_id` (una salida, un trayecto). Al crear un trayecto se enlaza solo con la salida pendiente del mismo día y sentido, y esa salida queda `realizada` (también el regreso). El enlace solo lo cambia el admin. Admin (diseño provisional): `/admin/programacion` con calendario del mes (disponible, en Cali esperando regreso), "Guardar y seguir" para digitar el mes rápido, corregir o cancelar (con motivo) salidas pendientes, salida adicional (cancela la del día siguiente), regresos (pendiente, atrasado, programado, hecho) y "trayectos sin salida" (registrarlo como adicional o enlazarlo a una pendiente). Conductor: pestaña "Agenda" (sin señal) con próximas salidas, regreso pendiente y vencimientos. Probado contra la base en una transacción revertida. Falta probar las pantallas con sesión real. La foto de la tabla de programación como referencia quedó sin hacer.
 8. ✅ Pagos y vencimientos con recordatorio por correo. Admin (diseño provisional): `/admin/pagos` con los vigentes (último pago por concepto) y su estado (vencido, toca renovar, por vencer, al día), "Registrar renovación" prellenado, comprobante opcional (se sube comprimido a la carpeta del admin), historial y eliminar (anular con motivo); el inicio del panel muestra los pagos por renovar. Correo: Vercel Cron diario a las 7:00 de Bogotá (`vercel.json`) → `/api/cron/recordatorios` (exige `Authorization: Bearer CRON_SECRET`, comparación en tiempo constante) → un solo correo por Resend con lo que toca renovar, y marca `recordatorio_enviado_en` (si el correo falla no marca y se reintenta al otro día). Es el **único** uso de la llave secreta (`lib/supabase/servicio.ts`). Falta: crear la cuenta de Resend, configurar las variables en Vercel y probar un envío real.
-9. Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor).
+9. ✅ Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor). `/admin/reportes?mes=`: resumen del mes (ingreso real, gastos, liquidación, promedio por vuelta completa, se quedó el conductor, diferencias de cuadre, vueltas sin cerrar), tabla por vuelta con enlace al detalle, por conductor en los últimos 12 meses (vueltas y puesto, liquidación de sus vueltas, lo que registró como "me lo quedé", diferencias de cuadre) y tendencia por mes. Descarga CSV (`;`, BOM, protegido contra fórmulas). Las sumas se hacen con `lib/dominio/reportes.ts` sobre `reporte_vueltas` y nunca se guardan; las vueltas en curso no suman. Falta probar con sesión real de admin (la consulta anidada de polilla por conductor no se pudo validar sin sesión).
 
 ---
 
