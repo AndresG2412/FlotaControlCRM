@@ -9,9 +9,9 @@ export default async function Categorias() {
   await exigirRol("admin");
   const categorias = await listarCategorias();
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Categorías de repuestos</h1>
+        <h1 className="titulo-pagina">Categorías de repuestos</h1>
         <Link href="/admin/configuracion" className="text-sm text-marca underline">Configuración</Link>
       </div>
       <p className="text-sm text-texto-suave">

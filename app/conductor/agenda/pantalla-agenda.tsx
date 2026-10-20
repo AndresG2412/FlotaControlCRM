@@ -18,7 +18,7 @@ import { fechaCorta } from "@/app/admin/vueltas/etiquetas";
 // (SOAT, seguro, tecnomecánica…). Solo fechas: nada de costos ni dinero.
 // Diseño provisional: la presentación final la define la sección de diseño.
 
-const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
+const tarjeta = "flex flex-col gap-3 neu-tarjeta p-4";
 
 export function PantallaAgenda() {
   const datos = useConsulta(async () => {
@@ -55,11 +55,11 @@ export function PantallaAgenda() {
     .sort((a, b) => (a.fecha_vencimiento ?? "").localeCompare(b.fecha_vencimiento ?? ""));
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Agenda</h1>
+    <div className="flex flex-col gap-5">
+      <h1 className="titulo-pagina">Agenda</h1>
 
       {regresos.length > 0 && (
-        <section className={`${tarjeta} border-aviso`}>
+        <section className={`${tarjeta} neu-aviso`}>
           <h2 className="font-semibold">Regreso pendiente</h2>
           {regresos.map((r) => (
             <p key={r.idaId} className="text-sm">
@@ -70,46 +70,48 @@ export function PantallaAgenda() {
         </section>
       )}
 
-      <section className={tarjeta}>
-        <h2 className="font-semibold">Próximas salidas</h2>
-        {proximas.length === 0 ? (
-          <p className="text-sm text-texto-suave">No hay salidas programadas.</p>
-        ) : (
-          <ul className="flex flex-col gap-1 text-sm">
-            {proximas.map((s: Salida) => (
-              <li key={s.id} className={`flex justify-between gap-2 border-b border-borde py-1 ${s.estado.startsWith("cancelada") ? "text-texto-suave line-through" : ""}`}>
-                <span>{fechaCorta(s.fecha)}{s.hora ? ` · ${s.hora}` : ""}</span>
-                <span>
-                  {s.sentido === "ida" ? "Ida" : "Regreso"}
-                  {s.tipo === "adicional" ? " (adicional)" : ""}
-                  {s.estado !== "pendiente" ? ` · ${ETIQUETA_ESTADO_SALIDA[s.estado]}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className={tarjeta}>
-        <h2 className="font-semibold">Vencimientos de la buseta</h2>
-        {vencimientos.length === 0 ? (
-          <p className="text-sm text-texto-suave">No hay vencimientos registrados.</p>
-        ) : (
-          <ul className="flex flex-col gap-1 text-sm">
-            {vencimientos.map((v) => {
-              const dias = diasEntre(hoy, v.fecha_vencimiento!);
-              return (
-                <li key={v.id} className="flex justify-between gap-2 border-b border-borde py-1">
-                  <span>{v.nombre}</span>
-                  <span className={dias < 0 ? "text-perdida" : dias <= 30 ? "text-aviso" : "text-texto-suave"}>
-                    {fechaCorta(v.fecha_vencimiento!)} · {dias < 0 ? `vencido hace ${-dias} días` : dias === 0 ? "vence hoy" : `faltan ${dias} días`}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <section className={tarjeta}>
+          <h2 className="font-semibold">Próximas salidas</h2>
+          {proximas.length === 0 ? (
+            <p className="text-sm text-texto-suave">No hay salidas programadas.</p>
+          ) : (
+            <ul className="flex flex-col gap-1 text-sm">
+              {proximas.map((s: Salida) => (
+                <li key={s.id} className={`flex justify-between gap-2 border-b border-borde py-1 ${s.estado.startsWith("cancelada") ? "text-texto-suave line-through" : ""}`}>
+                  <span>{fechaCorta(s.fecha)}{s.hora ? ` · ${s.hora}` : ""}</span>
+                  <span>
+                    {s.sentido === "ida" ? "Ida" : "Regreso"}
+                    {s.tipo === "adicional" ? " (adicional)" : ""}
+                    {s.estado !== "pendiente" ? ` · ${ETIQUETA_ESTADO_SALIDA[s.estado]}` : ""}
                   </span>
                 </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={tarjeta}>
+          <h2 className="font-semibold">Vencimientos de la buseta</h2>
+          {vencimientos.length === 0 ? (
+            <p className="text-sm text-texto-suave">No hay vencimientos registrados.</p>
+          ) : (
+            <ul className="flex flex-col gap-1 text-sm">
+              {vencimientos.map((v) => {
+                const dias = diasEntre(hoy, v.fecha_vencimiento!);
+                return (
+                  <li key={v.id} className="flex justify-between gap-2 border-b border-borde py-1">
+                    <span>{v.nombre}</span>
+                    <span className={dias < 0 ? "text-perdida" : dias <= 30 ? "text-aviso" : "text-texto-suave"}>
+                      {fechaCorta(v.fecha_vencimiento!)} · {dias < 0 ? `vencido hace ${-dias} días` : dias === 0 ? "vence hoy" : `faltan ${dias} días`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

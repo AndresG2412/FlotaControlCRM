@@ -20,10 +20,10 @@ import {
 } from "../acciones";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 w-full rounded-xl border border-borde bg-superficie px-3 text-sm";
-const boton = "h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-10 rounded-xl border border-borde px-4 text-sm disabled:opacity-60";
-const botonPeligro = "h-10 rounded-xl border border-perdida px-4 text-sm text-perdida disabled:opacity-60";
+const campo = "h-10 w-full neu-campo px-3 text-sm";
+const boton = "h-10 neu-boton-marca px-4 text-sm";
+const botonSecundario = "h-10 neu-boton px-4 text-sm";
+const botonPeligro = "h-10 w-fit neu-boton px-4 text-sm text-perdida";
 
 /** Ejecuta una Server Action y guarda su error (si lo hay). */
 function useAccion() {
@@ -89,7 +89,7 @@ function CorregirPlanilla({ planilla: p, alTerminar }: { planilla: PlanillaDetal
   }
 
   return (
-    <form onSubmit={guardar} className="mt-1 flex flex-col gap-2 rounded-xl border border-borde p-3">
+    <form onSubmit={guardar} className="mt-1 flex flex-col gap-2 neu-pozo p-3">
       <div className="flex gap-4 text-sm">
         <label className="flex items-center gap-1">
           <input type="radio" checked={emitida} onChange={() => setEmitida(true)} /> Hubo planilla
@@ -99,7 +99,7 @@ function CorregirPlanilla({ planilla: p, alTerminar }: { planilla: PlanillaDetal
         </label>
       </div>
       {emitida ? (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 @md:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
             Neto a pagar
             <input className={campo} inputMode="numeric" value={neto} onChange={(e) => setNeto(e.target.value)} />
@@ -139,7 +139,7 @@ function EliminarPlanilla({ planilla: p, alTerminar }: { planilla: PlanillaDetal
   }
 
   return (
-    <form onSubmit={eliminar} className="mt-1 flex flex-col gap-2 rounded-xl border border-perdida p-3">
+    <form onSubmit={eliminar} className="mt-1 flex flex-col gap-2 neu-pozo neu-peligro p-3">
       <p className="text-sm font-medium">¿Seguro que quieres eliminar esta planilla?</p>
       <p className="text-xs text-texto-suave">No se borra: queda anulada con el motivo, y la terminal vuelve a quedar por registrar.</p>
       <label className="flex flex-col gap-1 text-sm">
@@ -203,8 +203,8 @@ export function EditarVuelta({ vuelta, conductores }: { vuelta: DatosVueltaForm;
   );
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-2 rounded-xl border border-borde p-3">
-      <div className="grid gap-2 sm:grid-cols-3">
+    <form onSubmit={guardar} className="flex flex-col gap-2 neu-pozo p-3">
+      <div className="grid grid-cols-1 gap-3 @md:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
           Conductor Florencia
           <select className={campo} value={florencia} onChange={(e) => setFlorencia(e.target.value)}>{opciones}</select>
@@ -244,7 +244,7 @@ export function ReabrirVuelta({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-2">
       {confirmar ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+        <div className="flex flex-col gap-2 neu-pozo p-3">
           <p className="text-sm">¿Reabrir la vuelta? Vuelve a quedar en curso y los conductores pueden seguir registrando.</p>
           <div className="flex gap-2">
             <button type="button" className={botonSecundario} onClick={() => setConfirmar(false)}>Cancelar</button>
@@ -281,7 +281,7 @@ export function EliminarDePolilla({ tipo, id }: { tipo: "pasajero" | "encomienda
   }
 
   return (
-    <form onSubmit={eliminar} className="mt-1 flex flex-col gap-2 rounded-xl border border-perdida p-3">
+    <form onSubmit={eliminar} className="mt-1 flex flex-col gap-2 neu-pozo neu-peligro p-3">
       <p className="text-sm font-medium">¿Seguro que quieres eliminar {que}?</p>
       <p className="text-xs text-texto-suave">No se borra: queda anulado con el motivo y deja de sumar en la vuelta.</p>
       <label className="flex flex-col gap-1 text-sm">
@@ -307,7 +307,7 @@ export function AjustarGastoFijo({ id, concepto, valor }: { id: string; concepto
   const { pendiente, error, ejecutar } = useAccion();
 
   if (!abierto) {
-    return <button type="button" className="text-sm text-marca underline" onClick={() => setAbierto(true)}>Ajustar</button>;
+    return <button type="button" className="w-fit text-sm text-marca underline" onClick={() => setAbierto(true)}>Ajustar</button>;
   }
 
   function guardar(e: React.FormEvent) {
@@ -319,7 +319,7 @@ export function AjustarGastoFijo({ id, concepto, valor }: { id: string; concepto
   }
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+    <form onSubmit={guardar} className="flex flex-col gap-2 neu-pozo p-3">
       <label className="flex flex-col gap-1 text-sm">
         {concepto} en esta vuelta
         <input className={campo} inputMode="numeric" value={texto} onChange={(e) => setTexto(e.target.value)} />
@@ -352,7 +352,7 @@ export function EliminarGasto({ id }: { id: string }) {
         e.preventDefault();
         ejecutar(() => anularGasto({ id, motivo_anulacion: motivo.trim() }), () => setAbierto(false));
       }}
-      className="mt-1 flex flex-col gap-2 rounded-xl border border-perdida p-3"
+      className="mt-1 flex flex-col gap-2 neu-pozo neu-peligro p-3"
     >
       <p className="text-sm font-medium">¿Seguro que quieres eliminar este gasto?</p>
       <p className="text-xs text-texto-suave">No se borra: queda anulado con el motivo y deja de restar en la vuelta.</p>
@@ -390,7 +390,7 @@ export function CerrarVuelta({ id, efectivoEsperado }: { id: string; efectivoEsp
 
   if (confirmando && monto !== null && diferencia !== null) {
     return (
-      <div className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+      <div className="flex flex-col gap-2 neu-pozo p-3">
         <p className="text-sm font-medium">¿Cerrar la vuelta? Después queda solo de lectura.</p>
         <dl className="monto flex flex-col gap-1 text-sm">
           <div className="flex justify-between"><dt className="text-texto-suave">Efectivo esperado</dt><dd>{formatearPesos(efectivoEsperado)}</dd></div>
@@ -419,7 +419,7 @@ export function CerrarVuelta({ id, efectivoEsperado }: { id: string; efectivoEsp
   }
 
   return (
-    <form onSubmit={revisar} className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+    <form onSubmit={revisar} className="flex flex-col gap-2 neu-pozo p-3">
       <h3 className="font-semibold">Cerrar vuelta</h3>
       <label className="flex flex-col gap-1 text-sm">
         Efectivo que entregó el conductor
@@ -452,7 +452,7 @@ export function ReabrirCerrada({ id }: { id: string }) {
         e.preventDefault();
         ejecutar(() => reabrirVueltaCerrada({ id, motivo: motivo.trim() }), () => setAbierto(false));
       }}
-      className="flex flex-col gap-2 rounded-xl border border-perdida p-3"
+      className="flex flex-col gap-2 neu-pozo neu-peligro p-3"
     >
       <p className="text-sm font-medium">¿Seguro que quieres reabrir esta vuelta cerrada?</p>
       <p className="text-xs text-texto-suave">Queda finalizada y el cuadre actual se guarda en el historial; habrá que cerrarla de nuevo.</p>

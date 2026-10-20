@@ -11,7 +11,7 @@ import { guardarFoto } from "@/lib/offline/fotos";
 import type { TerminalVista, TrayectoLocal } from "@/lib/offline/vista";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-12 w-full rounded-xl border border-borde bg-superficie px-4 text-base";
+const campo = "h-12 w-full neu-campo px-4 text-base";
 
 export function FormularioPlanilla({
   uid,
@@ -66,22 +66,22 @@ export function FormularioPlanilla({
   const montoLeido = leerPesos(neto);
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4">
+    <form onSubmit={enviar} className="flex flex-col gap-3 neu-tarjeta p-4">
       <h3 className="font-semibold">Planilla de {TERMINALES[terminal.codigo]}</h3>
 
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setEmitida(true)}
-          className={`h-11 rounded-xl border ${emitida ? "border-marca bg-marca text-marca-texto" : "border-borde"}`}>
+          className={`h-11 neu-opcion ${emitida ? "neu-opcion-activa" : ""}`}>
           Hubo planilla
         </button>
         <button type="button" onClick={() => setEmitida(false)}
-          className={`h-11 rounded-xl border ${!emitida ? "border-marca bg-marca text-marca-texto" : "border-borde"}`}>
+          className={`h-11 neu-opcion ${!emitida ? "neu-opcion-activa" : ""}`}>
           No hubo
         </button>
       </div>
 
       {emitida ? (
-        <>
+        <div className="grid grid-cols-1 gap-3 @lg:grid-cols-2">
           <label className="flex flex-col gap-1">
             <span className="text-sm">Neto a pagar</span>
             <input className={campo} inputMode="numeric" value={neto} onChange={(e) => setNeto(e.target.value)} placeholder="600.000" autoFocus />
@@ -99,7 +99,7 @@ export function FormularioPlanilla({
             <span className="text-sm">Foto (opcional)</span>
             <input type="file" accept="image/*" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
           </label>
-        </>
+        </div>
       ) : (
         <label className="flex flex-col gap-1">
           <span className="text-sm">¿Por qué no hubo planilla?</span>
@@ -110,8 +110,8 @@ export function FormularioPlanilla({
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
 
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={alTerminar} className="h-12 rounded-xl border border-borde">Cancelar</button>
-        <button type="submit" disabled={guardando} className="h-12 rounded-xl bg-marca font-semibold text-marca-texto disabled:opacity-60">
+        <button type="button" onClick={alTerminar} className="h-12 neu-boton">Cancelar</button>
+        <button type="submit" disabled={guardando} className="h-12 neu-boton-marca">
           {guardando ? "Guardando…" : "Guardar"}
         </button>
       </div>

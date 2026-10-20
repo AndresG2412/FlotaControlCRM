@@ -8,9 +8,9 @@ import { clienteNavegador } from "@/lib/supabase/navegador";
 import { anularPago, registrarPago, type Resultado } from "./acciones";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 w-full rounded-xl border border-borde bg-superficie px-3 text-sm";
-const boton = "h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-10 rounded-xl border border-borde px-4 text-sm disabled:opacity-60";
+const campo = "h-10 w-full neu-campo px-3 text-sm";
+const boton = "h-10 neu-boton-marca px-4 text-sm";
+const botonSecundario = "h-10 neu-boton px-4 text-sm";
 
 function useAccion() {
   const [pendiente, iniciar] = useTransition();
@@ -81,9 +81,9 @@ export function FormularioPago({ uid, conceptos, renovar }: { uid: string; conce
   }
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-2 rounded-2xl border border-borde bg-superficie p-4">
+    <form onSubmit={guardar} className="flex flex-col gap-2 neu-tarjeta p-4">
       <h2 className="font-semibold">{renovar ? `Renovar ${renovar}` : "Registrar pago"}</h2>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @4xl:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
           ¿Qué se pagó?
           <input className={campo} list="conceptos-pago" value={nombre} maxLength={120} required onChange={(e) => setNombre(e.target.value)} placeholder="SOAT, seguro, tecnomecánica…" />
@@ -111,7 +111,7 @@ export function FormularioPago({ uid, conceptos, renovar }: { uid: string; conce
           Foto del comprobante (opcional)
           <input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
         </label>
-        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+        <label className="flex flex-col gap-1 text-sm @md:col-span-2 @4xl:col-span-3">
           Notas (opcional)
           <input className={campo} value={notas} maxLength={1000} onChange={(e) => setNotas(e.target.value)} />
         </label>
@@ -138,14 +138,14 @@ export function EliminarPago({ id }: { id: string }) {
         e.preventDefault();
         ejecutar(() => anularPago({ id, motivo_anulacion: motivo.trim() }), () => setAbierto(false));
       }}
-      className="flex flex-col gap-2 rounded-xl border border-perdida p-3"
+      className="flex flex-col gap-2 neu-pozo neu-peligro p-3"
     >
       <p className="text-sm">¿Seguro que quieres eliminar este pago? Queda anulado con el motivo.</p>
       <input className={campo} value={motivo} maxLength={300} required onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo" />
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
       <div className="flex gap-2">
         <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
-        <button className="h-10 rounded-xl border border-perdida px-4 text-sm text-perdida" disabled={pendiente || !motivo.trim()}>Sí, eliminar</button>
+        <button className="h-10 neu-boton px-4 text-sm text-perdida" disabled={pendiente || !motivo.trim()}>Sí, eliminar</button>
       </div>
     </form>
   );

@@ -1,34 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Bus, CalendarDays, Wrench } from "lucide-react";
+import { PestanasInferiores, type Seccion } from "../pestanas";
 
-// Diseño provisional: la presentación final la define la sección de diseño.
-const SECCIONES = [
-  { href: "/conductor", titulo: "Mi vuelta" },
-  { href: "/conductor/repuestos", titulo: "Repuestos" },
-  { href: "/conductor/agenda", titulo: "Agenda" },
-] as const;
+const SECCIONES: readonly Seccion[] = [
+  { href: "/conductor", titulo: "Mi vuelta", icono: Bus },
+  { href: "/conductor/repuestos", titulo: "Repuestos", icono: Wrench },
+  { href: "/conductor/agenda", titulo: "Agenda", icono: CalendarDays },
+];
 
+// El conductor usa la app en el celular: la barra queda abajo también en pantallas grandes.
 export function NavegacionConductor() {
-  const ruta = usePathname();
-  return (
-    <nav className="mx-auto flex w-full max-w-md gap-1 px-4 pb-2" aria-label="Secciones">
-      {SECCIONES.map(({ href, titulo }) => {
-        const activa = href === "/conductor" ? ruta === href : ruta.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={activa ? "page" : undefined}
-            className={`flex h-10 flex-1 items-center justify-center rounded-xl text-sm ${
-              activa ? "bg-marca font-semibold text-marca-texto" : "border border-borde"
-            }`}
-          >
-            {titulo}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <PestanasInferiores secciones={SECCIONES} raiz="/conductor" escritorio />;
 }

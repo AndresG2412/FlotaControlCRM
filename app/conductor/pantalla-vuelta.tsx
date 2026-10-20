@@ -29,9 +29,11 @@ import { PolillaDelTrayecto } from "./polilla";
 // Regla dura: aquí no se muestran sumas ni totales de dinero, solo registros sueltos.
 // Diseño provisional: la presentación final la define la sección de diseño.
 
-const boton = "h-12 w-full rounded-xl bg-marca font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-12 w-full rounded-xl border border-borde";
-const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
+const boton = "h-12 w-full neu-boton-marca";
+const botonSecundario = "h-12 w-full neu-boton";
+const tarjeta = "flex flex-col gap-3 neu-tarjeta p-4";
+// Pantallas de un solo bloque (iniciar, unirse): en PC no se estiran de lado a lado.
+const tarjetaSola = `${tarjeta} mx-auto w-full max-w-xl`;
 
 const refrescar = () => void sincronizarAhora().catch(() => undefined);
 
@@ -71,7 +73,7 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
 
   if (busetas.length === 0) {
     return (
-      <section className={tarjeta}>
+      <section className={tarjetaSola}>
         <h1 className="text-lg font-semibold">Sin datos todavía</h1>
         <p className="text-texto-suave">Conéctate a internet una vez para descargar la buseta y los conductores.</p>
         <button className={botonSecundario} onClick={refrescar}>Reintentar</button>
@@ -90,7 +92,7 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
   }
 
   return (
-    <section className={tarjeta}>
+    <section className={tarjetaSola}>
       <h1 className="text-lg font-semibold">Iniciar vuelta</h1>
       <p className="text-sm text-texto-suave">Buseta {busetas[0].placa}{busetas[0].numero_interno ? ` · ${busetas[0].numero_interno}` : ""}</p>
       <fieldset className="flex flex-col gap-2">
@@ -98,7 +100,7 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
         <div className="grid grid-cols-2 gap-2">
           {(["florencia", "pitalito"] as const).map((p) => (
             <button key={p} type="button" onClick={() => setPuesto(p)}
-              className={`h-11 rounded-xl border ${puesto === p ? "border-marca bg-marca text-marca-texto" : "border-borde"}`}>
+              className={`h-11 neu-opcion ${puesto === p ? "neu-opcion-activa" : ""}`}>
               Conductor {p === "florencia" ? "Florencia" : "Pitalito"}
             </button>
           ))}
@@ -106,7 +108,7 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
       </fieldset>
       <label className="flex flex-col gap-1">
         <span className="text-sm">Compañero</span>
-        <select className="h-12 rounded-xl border border-borde bg-superficie px-3" value={companero} onChange={(e) => setCompanero(e.target.value)}>
+        <select className="h-12 neu-campo px-3" value={companero} onChange={(e) => setCompanero(e.target.value)}>
           <option value="">Todavía no sé</option>
           {conductores.filter((c) => c.id !== uid).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
@@ -133,7 +135,7 @@ function UnirseAVuelta({ vista, conductores }: { vista: VistaVuelta; conductores
   }
 
   return (
-    <section className={tarjeta}>
+    <section className={tarjetaSola}>
       <h1 className="text-lg font-semibold">Hay una vuelta en curso</h1>
       <p className="text-sm text-texto-suave">
         Empezó el {vuelta.fecha_inicio}. Florencia: {nombreDe(conductores, vuelta.conductor_florencia_id)} · Pitalito:{" "}
@@ -204,9 +206,9 @@ function VueltaEnCurso({ uid, vista, conductores }: { uid: string; vista: VistaV
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Vuelta en curso</h1>
+        <h1 className="titulo-pagina">Vuelta en curso</h1>
         <p className="text-sm text-texto-suave">
           Desde el {vuelta.fecha_inicio} · Florencia: {nombreDe(conductores, vuelta.conductor_florencia_id)} · Pitalito:{" "}
           {nombreDe(conductores, vuelta.conductor_pitalito_id)}
@@ -214,10 +216,13 @@ function VueltaEnCurso({ uid, vista, conductores }: { uid: string; vista: VistaV
         {vuelta.tipo === "varada" && <p className="text-sm text-aviso">Vuelta varada</p>}
         {vista.sinEnviar && <p className="text-xs text-aviso">Hay cambios guardados en el celular sin enviar</p>}
       </section>
-      {trayectoCard("ida", ida)}
-      {trayectoCard("regreso", regreso)}
+      {/* En PC la ida y el regreso van lado a lado. */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        {trayectoCard("ida", ida)}
+        {trayectoCard("regreso", regreso)}
+      </div>
       <GastosDeLaVuelta uid={uid} vista={vista} />
-      <button className={botonSecundario} onClick={finalizar}>Finalizar vuelta</button>
+      <button className={`${botonSecundario} lg:w-64 lg:self-end`} onClick={finalizar}>Finalizar vuelta</button>
     </div>
   );
 }
@@ -230,7 +235,7 @@ function FilaTerminal({ terminal, alAbrir }: { terminal: TerminalVista; alAbrir:
         ? `Sin planilla: ${terminal.planilla?.motivo_sin_planilla ?? ""}`
         : "Falta registrar";
   return (
-    <button onClick={alAbrir} className="flex w-full items-center justify-between rounded-xl border border-borde px-4 py-3 text-left">
+    <button onClick={alAbrir} className="neu-boton flex w-full items-center justify-between px-4 py-3 text-left">
       <span className="flex flex-col">
         <span className="font-medium">{TERMINALES[terminal.codigo]}</span>
         <span className={`monto text-sm ${terminal.estado === "pendiente" ? "text-aviso" : "text-texto-suave"}`}>{detalle}</span>
@@ -259,7 +264,7 @@ function Varada({ vista, trayecto }: { vista: VistaVuelta; trayecto: TrayectoVis
       {opciones.map((t) => (
         <button key={t} className={botonSecundario} onClick={() => marcar(t)}>{TERMINALES[t]}</button>
       ))}
-      <button className="text-sm text-texto-suave underline" onClick={() => setAbierto(false)}>Cancelar</button>
+      <button className="w-fit text-sm text-texto-suave underline" onClick={() => setAbierto(false)}>Cancelar</button>
     </div>
   );
 }

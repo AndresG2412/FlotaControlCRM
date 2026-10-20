@@ -19,7 +19,7 @@ export function FormularioLogin() {
           autoCapitalize="none"
           autoCorrect="off"
           required
-          className="h-12 rounded-xl border border-borde bg-superficie px-4 text-base outline-none focus:border-marca focus:ring-2 focus:ring-marca/30"
+          className="h-12 neu-campo px-4 text-base"
         />
       </label>
       <label className="flex flex-col gap-1.5">
@@ -29,18 +29,18 @@ export function FormularioLogin() {
           type="password"
           autoComplete="current-password"
           required
-          className="h-12 rounded-xl border border-borde bg-superficie px-4 text-base outline-none focus:border-marca focus:ring-2 focus:ring-marca/30"
+          className="h-12 neu-campo px-4 text-base"
         />
       </label>
       {estado.error && (
-        <p role="alert" className="rounded-lg bg-perdida/10 px-3 py-2 text-sm text-perdida">
+        <p role="alert" className="neu-pozo neu-peligro px-4 py-3 text-sm text-perdida">
           {estado.error}
         </p>
       )}
       <button
         type="submit"
         disabled={enviando}
-        className="h-12 rounded-xl bg-marca text-base font-semibold text-marca-texto transition active:scale-[0.98] disabled:opacity-60"
+        className="mt-1 h-12 neu-boton-marca text-base"
       >
         {enviando ? "Entrando…" : "Entrar"}
       </button>

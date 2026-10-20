@@ -9,7 +9,7 @@ import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "./etiquetas";
 export const metadata = { title: "Vueltas" };
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 rounded-xl border border-borde bg-superficie px-3 text-sm";
+const campo = "h-10 neu-campo px-3 text-sm";
 
 /** El primer valor de un parámetro de la URL. */
 const uno = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -28,13 +28,13 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
   const vueltas = await listarVueltas(filtros);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Vueltas</h1>
+        <h1 className="titulo-pagina">Vueltas</h1>
         <Link href="/admin" className="text-sm text-marca underline">Panel</Link>
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-2xl border border-borde bg-superficie p-3">
+      <form method="get" className="flex flex-wrap items-end gap-2 neu-tarjeta p-3">
         <label className="flex flex-col gap-1 text-sm">
           Mes
           <input type="month" name="mes" defaultValue={filtros.mes ?? ""} className={campo} />
@@ -57,7 +57,7 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
             ))}
           </select>
         </label>
-        <button type="submit" className="h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto">Filtrar</button>
+        <button type="submit" className="h-10 neu-boton-marca px-4 text-sm">Filtrar</button>
         <Link href="/admin/vueltas?mes=todos" className="h-10 content-center px-2 text-sm text-marca underline">Ver todas</Link>
       </form>
 
@@ -67,9 +67,9 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
       </p>
 
       {vueltas.length === 0 ? (
-        <p className="rounded-2xl border border-borde bg-superficie p-4 text-texto-suave">No hay vueltas con esos filtros.</p>
+        <p className="neu-tarjeta p-4 text-texto-suave">No hay vueltas con esos filtros.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {vueltas.map((v) => <FilaVuelta key={v.id} vuelta={v} />)}
         </ul>
       )}
@@ -80,15 +80,15 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
 function FilaVuelta({ vuelta: v }: { vuelta: VueltaEnLista }) {
   const { registrada, sin_planilla, pendiente } = v.planillas;
   return (
-    <li>
+    <li className="h-full">
       <Link
         href={`/admin/vueltas/${v.id}`}
-        className="flex flex-col gap-1 rounded-2xl border border-borde bg-superficie p-4 hover:border-marca"
+        className="flex h-full flex-col gap-1 neu-tarjeta p-4 neu-enlace"
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{fechaCorta(v.fecha_inicio)}</span>
           {v.placa && <span className="text-sm text-texto-suave">{v.placa}</span>}
-          <span className="rounded-full border border-borde px-2 text-xs">{ETIQUETA_ESTADO[v.estado]}</span>
+          <span className="neu-chip px-2 text-xs">{ETIQUETA_ESTADO[v.estado]}</span>
           {v.tipo === "varada" && (
             <span className="rounded-full bg-aviso px-2 text-xs font-semibold text-superficie">Varada</span>
           )}

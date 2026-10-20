@@ -35,7 +35,7 @@ export const metadata = { title: "Detalle de vuelta" };
 
 // Diseño provisional. Todo el dinero (ingresos, gastos, liquidación y cuadre) se lee
 // de reporte_vueltas: aquí no se recalcula.
-const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
+const tarjeta = "flex flex-col gap-3 neu-tarjeta p-4";
 
 export default async function DetalleVuelta({ params }: PageProps<"/admin/vueltas/[id]">) {
   await exigirRol("admin");
@@ -46,18 +46,18 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
   const permitido = accionesAdmin(vuelta.estado);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <Link href="/admin/vueltas" className="text-sm text-marca underline">← Vueltas</Link>
 
       <div className={tarjeta}>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">Vuelta del {fechaCorta(vuelta.fecha_inicio)}</h1>
-          <span className="rounded-full border border-borde px-2 text-xs">{ETIQUETA_ESTADO[vuelta.estado]}</span>
+          <h1 className="titulo-pagina">Vuelta del {fechaCorta(vuelta.fecha_inicio)}</h1>
+          <span className="neu-chip px-2 text-xs">{ETIQUETA_ESTADO[vuelta.estado]}</span>
           {vuelta.tipo === "varada" && (
             <span className="rounded-full bg-aviso px-2 text-xs font-semibold text-superficie">Varada</span>
           )}
         </div>
-        <dl className="grid gap-1 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm @xl:grid-cols-2 @4xl:grid-cols-3">
           <Dato termino="Buseta" valor={vuelta.placa ?? "—"} />
           <Dato termino="Tipo" valor={ETIQUETA_TIPO[vuelta.tipo]} />
           <Dato termino="Conductor Florencia" valor={vuelta.conductorFlorencia ?? "Sin asignar"} />
@@ -73,27 +73,32 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
         {vuelta.notas && <p className="text-sm text-texto-suave">Notas: {vuelta.notas}</p>}
         {vuelta.estado === "cerrada" && <p className="text-sm text-texto-suave">Vuelta cerrada: solo lectura.</p>}
 
-        {permitido.editar && (
-          <EditarVuelta
-            vuelta={{
-              id: vuelta.id,
-              tipo: vuelta.tipo,
-              conductor_florencia_id: vuelta.conductor_florencia_id,
-              conductor_pitalito_id: vuelta.conductor_pitalito_id,
-            }}
-            conductores={conductores}
-          />
-        )}
-        {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
-        {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
+        {/* Botones en fila; el formulario que se abre ocupa toda la fila. */}
+        <div className="flex flex-wrap items-start gap-3 [&>form]:basis-full [&>div:has(>.neu-pozo)]:basis-full">
+          {permitido.editar && (
+            <EditarVuelta
+              vuelta={{
+                id: vuelta.id,
+                tipo: vuelta.tipo,
+                conductor_florencia_id: vuelta.conductor_florencia_id,
+                conductor_pitalito_id: vuelta.conductor_pitalito_id,
+              }}
+              conductores={conductores}
+            />
+          )}
+          {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
+          {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
+        </div>
       </div>
 
-      <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
-      <Liquidacion dinero={vuelta.dinero} varada={vuelta.tipo === "varada"} puedeCerrar={permitido.cerrar} id={vuelta.id} />
-      {vuelta.tipo === "completa" && (
-        <GastosFijos fijos={vuelta.gastosFijos} editable={permitido.editar} />
-      )}
-      <GastosVariables gastos={vuelta.gastosVariables} editable={permitido.editar} varada={vuelta.tipo === "varada"} />
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
+        <Liquidacion dinero={vuelta.dinero} varada={vuelta.tipo === "varada"} puedeCerrar={permitido.cerrar} id={vuelta.id} />
+        {vuelta.tipo === "completa" && (
+          <GastosFijos fijos={vuelta.gastosFijos} editable={permitido.editar} />
+        )}
+        <GastosVariables gastos={vuelta.gastosVariables} editable={permitido.editar} varada={vuelta.tipo === "varada"} />
+      </div>
       <CierresReemplazados cierres={vuelta.cierresReemplazados} />
 
       {vuelta.faltan.map((sentido) => (
@@ -101,8 +106,10 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
           {sentido === "ida" ? "La ida" : "El regreso"} no se ha registrado.
         </p>
       ))}
-      {vuelta.ida && <Trayecto trayecto={vuelta.ida} editable={permitido.editar} />}
-      {vuelta.regreso && <Trayecto trayecto={vuelta.regreso} editable={permitido.editar} />}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        {vuelta.ida && <Trayecto trayecto={vuelta.ida} editable={permitido.editar} />}
+        {vuelta.regreso && <Trayecto trayecto={vuelta.regreso} editable={permitido.editar} />}
+      </div>
     </section>
   );
 }
@@ -110,7 +117,7 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
 function Dato({ termino, valor }: { termino: string; valor: string }) {
   return (
     <div className="flex gap-1">
-      <dt className="text-texto-suave">{termino}:</dt>
+      <dt className="shrink-0 text-texto-suave">{termino}:</dt>
       <dd>{valor}</dd>
     </div>
   );
@@ -143,7 +150,7 @@ function Trayecto({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editab
           <summary className="cursor-pointer text-texto-suave">Planillas eliminadas ({t.anuladas.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {t.anuladas.map((p) => (
-              <li key={p.id} className="rounded-xl border border-borde p-3 opacity-80">
+              <li key={p.id} className="neu-pozo p-3 opacity-80">
                 <span className="font-medium">{TERMINALES[p.terminal]}</span>: {resumenPlanilla(p)}
                 <br />
                 <span className="text-texto-suave">Motivo: {p.motivo_anulacion}</span>
@@ -166,7 +173,7 @@ function resumenPlanilla(p: PlanillaDetalle): string {
 function Terminal({ terminal, editable }: { terminal: TerminalConPlanilla<PlanillaDetalle>; editable: boolean }) {
   const p = terminal.planilla;
   return (
-    <li className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+    <li className="flex flex-col gap-1 neu-pozo p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium">{TERMINALES[terminal.codigo]}</span>
         {terminal.estado === "pendiente" && <span className="text-sm text-aviso">Falta registrar</span>}
@@ -191,7 +198,7 @@ function Terminal({ terminal, editable }: { terminal: TerminalConPlanilla<Planil
             <a href={p.fotoUrl} target="_blank" rel="noopener noreferrer" className="w-fit">
               {/* URL firmada de corta duración; next/image no aplica a URLs temporales. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.fotoUrl} alt={`Foto de la planilla de ${TERMINALES[p.terminal]}`} className="max-h-48 rounded-lg border border-borde" />
+              <img src={p.fotoUrl} alt={`Foto de la planilla de ${TERMINALES[p.terminal]}`} className="max-h-48 neu-foto" />
             </a>
           )}
           <Autoria planilla={p} />
@@ -258,14 +265,14 @@ function Polilla({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editabl
       )}
       <ul className="flex flex-col gap-2">
         {pasajeros.map((p) => (
-          <li key={p.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+          <li key={p.id} className="flex flex-col gap-1 neu-pozo p-3">
             <Pasajero pasajero={p} />
             <AutoriaRegistro registro={p} />
             {editable && <EliminarDePolilla tipo="pasajero" id={p.id} />}
           </li>
         ))}
         {encomiendas.map((e) => (
-          <li key={e.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+          <li key={e.id} className="flex flex-col gap-1 neu-pozo p-3">
             <Encomienda encomienda={e} />
             <AutoriaRegistro registro={e} />
             {editable && <EliminarDePolilla tipo="encomienda" id={e.id} />}
@@ -277,7 +284,7 @@ function Polilla({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editabl
           <summary className="cursor-pointer text-texto-suave">Eliminados ({eliminados.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {eliminados.map((r) => (
-              <li key={r.id} className="rounded-xl border border-borde p-3 opacity-80">
+              <li key={r.id} className="neu-pozo p-3 opacity-80">
                 {"tramo_id" in r ? <Pasajero pasajero={r} /> : <Encomienda encomienda={r} />}
                 <span className="text-texto-suave">Motivo: {r.motivo_anulacion}</span>
               </li>
@@ -420,7 +427,7 @@ function GastosFijos({ fijos, editable }: { fijos: GastoFijoVuelta[]; editable: 
       ) : (
         <ul className="flex flex-col gap-2">
           {fijos.map((f) => (
-            <li key={f.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+            <li key={f.id} className="flex flex-col gap-1 neu-pozo p-3">
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="font-medium">
                   {f.concepto}
@@ -465,7 +472,7 @@ function GastosVariables({ gastos, editable, varada }: { gastos: GastoVariableDe
       {activos.length === 0 && <p className="text-sm text-texto-suave">Sin gastos variables.</p>}
       <ul className="flex flex-col gap-2">
         {activos.map((g) => (
-          <li key={g.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+          <li key={g.id} className="flex flex-col gap-1 neu-pozo p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium">
                 {ETIQUETA_GASTO[g.tipo]}
@@ -477,7 +484,7 @@ function GastosVariables({ gastos, editable, varada }: { gastos: GastoVariableDe
               <a href={g.fotoUrl} target="_blank" rel="noopener noreferrer" className="w-fit">
                 {/* URL firmada de corta duración; next/image no aplica a URLs temporales. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={g.fotoUrl} alt={`Recibo de ${ETIQUETA_GASTO[g.tipo]}`} className="max-h-48 rounded-lg border border-borde" />
+                <img src={g.fotoUrl} alt={`Recibo de ${ETIQUETA_GASTO[g.tipo]}`} className="max-h-48 neu-foto" />
               </a>
             )}
             <AutoriaRegistro registro={g} />
@@ -490,7 +497,7 @@ function GastosVariables({ gastos, editable, varada }: { gastos: GastoVariableDe
           <summary className="cursor-pointer text-texto-suave">Eliminados ({eliminados.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {eliminados.map((g) => (
-              <li key={g.id} className="rounded-xl border border-borde p-3 opacity-80">
+              <li key={g.id} className="neu-pozo p-3 opacity-80">
                 {ETIQUETA_GASTO[g.tipo]} · <span className="monto">{formatearPesos(g.monto)}</span>
                 <br />
                 <span className="text-texto-suave">Motivo: {g.motivo_anulacion}</span>
@@ -510,7 +517,7 @@ function CierresReemplazados({ cierres }: { cierres: CierreReemplazado[] }) {
       <summary className="cursor-pointer text-texto-suave">Cierres anteriores reemplazados ({cierres.length})</summary>
       <ul className="mt-2 flex flex-col gap-2">
         {cierres.map((c) => (
-          <li key={c.reabiertoEn} className="rounded-xl border border-borde p-3">
+          <li key={c.reabiertoEn} className="neu-pozo p-3">
             Entregado <span className="monto">{formatearPesos(c.efectivoEntregado)}</span>
             {c.cerradoEn && ` · cerrada ${formatearFechaHora(c.cerradoEn)}`}
             <br />

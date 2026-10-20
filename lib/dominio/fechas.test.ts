@@ -3,6 +3,7 @@ import {
   diaEnBogota,
   diasDelMes,
   diasEntre,
+  fechaNumerica,
   formatearFechaHora,
   horaSospechosa,
   rangoDelMes,
@@ -53,5 +54,12 @@ describe("formatearFechaHora", () => {
     const texto = formatearFechaHora("2026-10-13T03:30:00Z");
     expect(texto).toContain("12");
     expect(texto).toMatch(/10:30/);
+  });
+});
+
+describe("fechaNumerica", () => {
+  it("muestra día/mes/año corto, sin el día de la semana", () => {
+    expect(fechaNumerica("2026-10-15")).toBe("15/10/26");
+    expect(fechaNumerica("2027-01-05")).toBe("05/01/27");
   });
 });

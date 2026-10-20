@@ -74,3 +74,9 @@ const formatoFechaHora = new Intl.DateTimeFormat("es-CO", {
 export function formatearFechaHora(instante: string | Date): string {
   return formatoFechaHora.format(typeof instante === "string" ? new Date(instante) : instante);
 }
+
+/** Día calendario "YYYY-MM-DD" como "dd/mm/aa" (ej. 15/10/26), sin día de la semana. */
+export function fechaNumerica(fecha: FechaISO): string {
+  const [a, m, d] = fecha.split("-");
+  return `${d}/${m}/${a.slice(-2)}`;
+}

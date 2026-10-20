@@ -35,12 +35,14 @@ export function EstadoSincronizacion({ uid }: { uid: string }) {
   const { pendientes, errores, fotos, sesionVencida } = estado;
 
   let texto = "Todo enviado";
-  if (sesionVencida) texto = "Sesión vencida: vuelve a entrar para enviar lo guardado";
-  else if (errores > 0) texto = `${errores} registro(s) con error`;
-  else if (pendientes + fotos > 0) texto = `${pendientes + fotos} por enviar`;
+  let punto = "bg-ganancia";
+  if (sesionVencida) [texto, punto] = ["Sesión vencida: vuelve a entrar para enviar lo guardado", "bg-perdida"];
+  else if (errores > 0) [texto, punto] = [`${errores} registro(s) con error`, "bg-perdida"];
+  else if (pendientes + fotos > 0) [texto, punto] = [`${pendientes + fotos} por enviar`, "bg-aviso"];
 
   return (
-    <p role="status" className="text-xs text-texto-suave">
+    <p role="status" className="flex items-center gap-1.5 truncate text-xs text-texto-suave">
+      <span className={`size-1.5 shrink-0 rounded-full ${punto}`} aria-hidden />
       {texto}
     </p>
   );

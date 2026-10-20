@@ -8,10 +8,10 @@ import type { Categoria } from "@/lib/dominio/repuestos";
 import { anularRepuesto, guardarRepuestoAdmin, type Resultado } from "./acciones";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 w-full rounded-xl border border-borde bg-superficie px-3 text-sm";
-const boton = "h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-10 rounded-xl border border-borde px-4 text-sm disabled:opacity-60";
-const botonPeligro = "h-10 rounded-xl border border-perdida px-4 text-sm text-perdida disabled:opacity-60";
+const campo = "h-10 w-full neu-campo px-3 text-sm";
+const boton = "h-10 neu-boton-marca px-4 text-sm";
+const botonSecundario = "h-10 neu-boton px-4 text-sm";
+const botonPeligro = "h-10 w-fit neu-boton px-4 text-sm text-perdida";
 
 function useAccion() {
   const [pendiente, iniciar] = useTransition();
@@ -103,9 +103,9 @@ function FormularioRepuesto({
   }
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-2 rounded-2xl border border-borde bg-superficie p-4">
+    <form onSubmit={guardar} className="flex flex-col gap-2 neu-tarjeta p-4">
       <h2 className="font-semibold">{editar ? "Corregir repuesto" : "Registrar repuesto"}</h2>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @4xl:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
           Categoría
           <select className={campo} value={categoria} onChange={(e) => setCategoria(e.target.value)} required>
@@ -130,9 +130,9 @@ function FormularioRepuesto({
           Taller
           <input className={campo} value={taller} maxLength={120} required onChange={(e) => setTaller(e.target.value)} />
         </label>
-        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+        <label className="flex flex-col gap-1 text-sm @md:col-span-2 @4xl:col-span-3">
           Notas (opcional)
-          <textarea className="min-h-16 rounded-xl border border-borde bg-superficie p-2 text-sm" value={notas} maxLength={1000} onChange={(e) => setNotas(e.target.value)} />
+          <textarea className="min-h-16 neu-campo p-2 text-sm" value={notas} maxLength={1000} onChange={(e) => setNotas(e.target.value)} />
         </label>
       </div>
       {!editar && <p className="text-xs text-texto-suave">La foto se agrega desde el celular (app del conductor).</p>}
@@ -154,7 +154,7 @@ function EliminarRepuesto({ id, alTerminar }: { id: string; alTerminar: () => vo
         e.preventDefault();
         ejecutar(() => anularRepuesto({ id, motivo_anulacion: motivo.trim() }), alTerminar);
       }}
-      className="flex flex-col gap-2 rounded-xl border border-perdida p-3"
+      className="flex flex-col gap-2 neu-pozo neu-peligro p-3"
     >
       <p className="text-sm font-medium">¿Seguro que quieres eliminar este repuesto?</p>
       <p className="text-xs text-texto-suave">No se borra: queda anulado con el motivo y sale del historial.</p>

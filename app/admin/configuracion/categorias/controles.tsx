@@ -5,8 +5,8 @@ import { cambiarEstadoCategoria, crearCategoria } from "@/app/admin/repuestos/ac
 import type { Categoria } from "@/lib/dominio/repuestos";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 flex-1 rounded-xl border border-borde bg-superficie px-3 text-sm";
-const boton = "h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto disabled:opacity-60";
+const campo = "h-10 flex-1 neu-campo px-3 text-sm";
+const boton = "h-10 neu-boton-marca px-4 text-sm";
 
 export function ControlesCategorias({ categorias }: { categorias: Categoria[] }) {
   const [nombre, setNombre] = useState("");
@@ -36,7 +36,7 @@ export function ControlesCategorias({ categorias }: { categorias: Categoria[] })
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
       <ul className="flex flex-col gap-2">
         {categorias.map((c) => (
-          <li key={c.id} className="flex items-center justify-between rounded-xl border border-borde bg-superficie px-4 py-2">
+          <li key={c.id} className="flex items-center justify-between neu-pozo px-4 py-2">
             <span className={c.activa ? "" : "text-texto-suave line-through"}>{c.nombre}</span>
             <button
               className="text-sm text-marca underline disabled:opacity-60"

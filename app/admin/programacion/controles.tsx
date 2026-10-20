@@ -14,10 +14,10 @@ import {
 } from "./acciones";
 
 // Diseño provisional: la presentación final la define la sección de diseño.
-const campo = "h-10 w-full rounded-xl border border-borde bg-superficie px-3 text-sm";
-const boton = "h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-10 rounded-xl border border-borde px-4 text-sm disabled:opacity-60";
-const tarjeta = "flex flex-col gap-2 rounded-2xl border border-borde bg-superficie p-4";
+const campo = "h-10 w-full neu-campo px-3 text-sm";
+const boton = "h-10 neu-boton-marca px-4 text-sm";
+const botonSecundario = "h-10 neu-boton px-4 text-sm";
+const tarjeta = "flex flex-col gap-2 neu-tarjeta p-4";
 
 function useAccion() {
   const [pendiente, iniciar] = useTransition();
@@ -48,8 +48,8 @@ function CamposSalida(props: {
   setSentido: (v: Sentido) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <label className="flex flex-col gap-1 text-sm">
+    <div className="grid grid-cols-2 gap-3 @lg:grid-cols-3">
+      <label className="col-span-2 flex flex-col gap-1 text-sm @lg:col-span-1">
         Fecha
         <input type="date" className={campo} value={props.fecha} required onChange={(e) => props.setFecha(e.target.value)} />
       </label>
@@ -153,7 +153,7 @@ export function AccionesSalida({ salida }: { salida: SalidaAdmin }) {
   if (modo === "editar") {
     return (
       <form
-        className="flex flex-col gap-2 rounded-xl border border-borde p-3"
+        className="flex flex-col gap-2 neu-pozo p-3"
         onSubmit={(e) => {
           e.preventDefault();
           ejecutar(() => editarSalida({ id: salida.id, fecha, hora: hora || null, sentido, notas: salida.notas }), () => setModo("nada"));
@@ -171,7 +171,7 @@ export function AccionesSalida({ salida }: { salida: SalidaAdmin }) {
   if (modo === "cancelar") {
     return (
       <form
-        className="flex flex-col gap-2 rounded-xl border border-perdida p-3"
+        className="flex flex-col gap-2 neu-pozo neu-peligro p-3"
         onSubmit={(e) => {
           e.preventDefault();
           ejecutar(() => cancelarSalida({ id: salida.id, motivo: motivo.trim() }), () => setModo("nada"));
@@ -182,7 +182,7 @@ export function AccionesSalida({ salida }: { salida: SalidaAdmin }) {
         <MensajeError mensaje={error} />
         <div className="flex gap-2">
           <button type="button" className={botonSecundario} onClick={() => setModo("nada")}>Volver</button>
-          <button className="h-10 rounded-xl border border-perdida px-4 text-sm text-perdida" disabled={pendiente || !motivo.trim()}>Sí, cancelar</button>
+          <button className="h-10 neu-boton px-4 text-sm text-perdida" disabled={pendiente || !motivo.trim()}>Sí, cancelar</button>
         </div>
       </form>
     );

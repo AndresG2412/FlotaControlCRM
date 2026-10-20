@@ -16,11 +16,11 @@ import type { GastoVista, TipoGasto, VistaVuelta } from "@/lib/offline/vista";
 // Regla dura: nada de totales, "llevas gastado…" ni gastos fijos en esta pantalla.
 // Diseño provisional: la presentación final la define la sección de diseño.
 
-const campo = "h-12 w-full rounded-xl border border-borde bg-superficie px-4 text-base";
-const boton = "h-12 w-full rounded-xl bg-marca font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-12 w-full rounded-xl border border-borde disabled:opacity-60";
+const campo = "h-12 w-full neu-campo px-4 text-base";
+const boton = "h-12 w-full neu-boton-marca";
+const botonSecundario = "h-12 w-full neu-boton";
 const opcion = (activa: boolean) =>
-  `min-h-11 rounded-xl border px-3 text-sm ${activa ? "border-marca bg-marca text-marca-texto" : "border-borde"}`;
+  `min-h-11 neu-opcion px-3 text-sm ${activa ? "neu-opcion-activa" : ""}`;
 
 const refrescar = () => void sincronizarAhora().catch(() => undefined);
 
@@ -45,11 +45,11 @@ export function GastosDeLaVuelta({ uid, vista }: { uid: string; vista: VistaVuel
   const trayectoId = vista.regreso?.trayecto.id ?? vista.ida?.trayecto.id ?? null;
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4">
+    <section className="flex flex-col gap-3 neu-tarjeta p-4">
       <h2 className="font-semibold">Gastos</h2>
 
       {modo.tipo === "nada" ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 @xl:grid-cols-4">
           {TIPOS.map((t) => (
             <button key={t} className={t === "acpm" ? boton : botonSecundario} onClick={() => setModo({ tipo: "nuevo", gasto: t })}>
               + {ETIQUETA[t]}
@@ -71,7 +71,7 @@ export function GastosDeLaVuelta({ uid, vista }: { uid: string; vista: VistaVuel
       {vista.gastos.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Gastos registrados">
           {vista.gastos.map((g) => (
-            <li key={g.id} className="flex items-start justify-between gap-2 rounded-xl border border-borde px-4 py-3">
+            <li key={g.id} className="flex items-start justify-between gap-2 neu-pozo px-4 py-3">
               <button onClick={() => setModo({ tipo: "editar", gasto: g })} className="flex flex-1 flex-col text-left">
                 <span className="font-medium">
                   {ETIQUETA[g.tipo]}
@@ -160,7 +160,7 @@ function FormularioGasto({
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-2xl border border-borde p-3">
+    <form onSubmit={enviar} className="flex flex-col gap-3 neu-pozo p-3">
       <h3 className="font-semibold">{editar ? `Corregir ${ETIQUETA[tipo]}` : ETIQUETA[tipo]}</h3>
 
       {tipo === "liga" && (
@@ -176,46 +176,48 @@ function FormularioGasto({
         </fieldset>
       )}
 
-      {(tipo === "extra" || tipo === "arreglo") && (
+      <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2 @4xl:grid-cols-4">
+        {(tipo === "extra" || tipo === "arreglo") && (
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">{tipo === "arreglo" ? "¿Qué se arregló?" : "¿En qué fue?"}</span>
+            <input className={campo} value={descripcion} maxLength={200} onChange={(e) => setDescripcion(e.target.value)} placeholder={tipo === "arreglo" ? "Llanta pinchada" : "Almuerzo"} />
+          </label>
+        )}
+        {tipo === "arreglo" && (
+          <p className="col-span-full text-xs text-texto-suave">
+            Si se cambió una pieza, regístrala también en <Link href="/conductor/repuestos" className="text-marca underline">Repuestos</Link>{" "}
+            marcando &quot;se cambió en ruta&quot;, para que quede en el historial de la buseta.
+          </p>
+        )}
+
         <label className="flex flex-col gap-1">
-          <span className="text-sm">{tipo === "arreglo" ? "¿Qué se arregló?" : "¿En qué fue?"}</span>
-          <input className={campo} value={descripcion} maxLength={200} onChange={(e) => setDescripcion(e.target.value)} placeholder={tipo === "arreglo" ? "Llanta pinchada" : "Almuerzo"} />
+          <span className="text-sm">¿Cuánto fue?</span>
+          <input className={campo} inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="150.000" autoFocus />
         </label>
-      )}
-      {tipo === "arreglo" && (
-        <p className="text-xs text-texto-suave">
-          Si se cambió una pieza, regístrala también en <Link href="/conductor/repuestos" className="text-marca underline">Repuestos</Link>{" "}
-          marcando &quot;se cambió en ruta&quot;, para que quede en el historial de la buseta.
-        </p>
-      )}
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">¿Cuánto fue?</span>
-        <input className={campo} inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="150.000" autoFocus />
-      </label>
+        {tipo === "acpm" && (
+          <>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Galones (opcional)</span>
+              <input className={campo} inputMode="decimal" value={galones} onChange={(e) => setGalones(e.target.value)} placeholder="25,5" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">¿Dónde? (opcional)</span>
+              <input className={campo} value={lugar} maxLength={120} onChange={(e) => setLugar(e.target.value)} placeholder="Estación de Pitalito" />
+            </label>
+          </>
+        )}
 
-      {tipo === "acpm" && (
-        <>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Galones (opcional)</span>
-            <input className={campo} inputMode="decimal" value={galones} onChange={(e) => setGalones(e.target.value)} placeholder="25,5" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">¿Dónde? (opcional)</span>
-            <input className={campo} value={lugar} maxLength={120} onChange={(e) => setLugar(e.target.value)} placeholder="Estación de Pitalito" />
-          </label>
-        </>
-      )}
-
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Foto del recibo (opcional)</span>
-        <input type="file" accept="image/*" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
-        {editar?.foto_path && !foto && <span className="text-xs text-texto-suave">Ya tiene foto. Elige otra solo si quieres cambiarla.</span>}
-      </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Foto del recibo (opcional)</span>
+          <input type="file" accept="image/*" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+          {editar?.foto_path && !foto && <span className="text-xs text-texto-suave">Ya tiene foto. Elige otra solo si quieres cambiarla.</span>}
+        </label>
+      </div>
 
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 @3xl:w-96 @3xl:self-end">
         <button type="button" className={botonSecundario} onClick={alTerminar}>Cancelar</button>
         <button type="submit" className={boton} disabled={guardando}>Guardar</button>
       </div>

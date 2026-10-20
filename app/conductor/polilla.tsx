@@ -22,11 +22,11 @@ import type { EncomiendaVista, PasajeroVista, TrayectoVista } from "@/lib/offlin
 // Regla dura: nada de sumas ni totales de dinero en esta pantalla.
 // Diseño provisional: la presentación final la define la sección de diseño.
 
-const campo = "h-12 w-full rounded-xl border border-borde bg-superficie px-4 text-base";
-const boton = "h-12 w-full rounded-xl bg-marca font-semibold text-marca-texto disabled:opacity-60";
-const botonSecundario = "h-12 w-full rounded-xl border border-borde disabled:opacity-60";
+const campo = "h-12 w-full neu-campo px-4 text-base";
+const boton = "h-12 w-full neu-boton-marca";
+const botonSecundario = "h-12 w-full neu-boton";
 const opcion = (activa: boolean) =>
-  `min-h-11 rounded-xl border px-3 text-sm ${activa ? "border-marca bg-marca text-marca-texto" : "border-borde"}`;
+  `min-h-11 neu-opcion px-3 text-sm ${activa ? "neu-opcion-activa" : ""}`;
 
 const refrescar = () => void sincronizarAhora().catch(() => undefined);
 
@@ -120,13 +120,13 @@ function Fila(props: {
   alEliminar: () => void;
 }) {
   return (
-    <li className="flex items-start justify-between gap-2 rounded-xl border border-borde px-4 py-3">
+    <li className="flex items-start justify-between gap-2 neu-pozo px-4 py-3">
       <button onClick={props.alEditar} className="flex flex-1 flex-col text-left">
         <span className="font-medium">{props.titulo}</span>
         <span className="monto text-sm text-texto-suave">{props.detalle}</span>
         {props.sinEnviar && <span className="text-xs text-aviso">Sin enviar</span>}
       </button>
-      <button onClick={props.alEliminar} className="text-sm text-perdida underline">Eliminar</button>
+      <button onClick={props.alEliminar} className="w-fit text-sm text-perdida underline">Eliminar</button>
     </li>
   );
 }
@@ -193,12 +193,12 @@ function FormularioPasajero({
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); void guardar(false); }} className="flex flex-col gap-3 rounded-2xl border border-borde p-3">
+    <form onSubmit={(e) => { e.preventDefault(); void guardar(false); }} className="flex flex-col gap-3 neu-pozo p-3">
       <h4 className="font-semibold">{editar ? "Corregir pasajero" : "Pasajero de vía"}</h4>
 
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 text-sm">¿En qué tramo subió?</legend>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 gap-2 @md:grid-cols-3">
           {tramosDe(sentido).map((t) => (
             <button key={t.id} type="button" className={opcion(tramo === t.id)} onClick={() => setTramo(t.id)}>
               {nombreTramo(t.id)}
@@ -310,7 +310,7 @@ function FormularioEncomienda({
   }
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-3 rounded-2xl border border-borde p-3">
+    <form onSubmit={guardar} className="flex flex-col gap-3 neu-pozo p-3">
       <h4 className="font-semibold">{editar ? "Corregir encomienda" : "Encomienda"}</h4>
 
       <div className="grid grid-cols-2 gap-2">
@@ -318,7 +318,7 @@ function FormularioEncomienda({
         <button type="button" className={opcion(donde === "via")} onClick={() => setDonde("via")}>En la vía</button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 gap-2 @md:grid-cols-3">
         {donde === "terminal"
           ? terminalesConPlanilla(sentido).map((t) => (
               <button key={t} type="button" className={opcion(terminal === t)} onClick={() => setTerminal(t)}>

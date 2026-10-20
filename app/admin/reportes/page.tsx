@@ -10,8 +10,8 @@ export const metadata = { title: "Reportes" };
 
 // Diseño provisional: la presentación final la define la sección de diseño.
 // Las sumas se hacen aquí sobre reporte_vueltas (solo admin); nunca se guardan.
-const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
-const campo = "h-10 rounded-xl border border-borde bg-superficie px-3 text-sm";
+const tarjeta = "flex flex-col gap-3 neu-tarjeta p-4";
+const campo = "h-10 neu-campo px-3 text-sm";
 
 const uno = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const esMes = (v: string | undefined): v is string => Boolean(v && /^\d{4}-(0[1-9]|1[0-2])$/.test(v));
@@ -44,9 +44,9 @@ export default async function Reportes({ searchParams }: PageProps<"/admin/repor
   const nombre = (id: string | null) => (id ? (nombres[id] ?? "Usuario desconocido") : "—");
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Reportes</h1>
+        <h1 className="titulo-pagina">Reportes</h1>
         <Link href="/admin" className="text-sm text-marca underline">Panel</Link>
       </div>
 
@@ -55,13 +55,13 @@ export default async function Reportes({ searchParams }: PageProps<"/admin/repor
           Mes
           <input type="month" name="mes" defaultValue={mes} className={campo} />
         </label>
-        <button className="h-10 rounded-xl bg-marca px-4 text-sm font-semibold text-marca-texto">Ver</button>
+        <button className="h-10 neu-boton-marca px-4 text-sm">Ver</button>
         <a href={`/admin/reportes/csv?mes=${mes}`} className="h-10 content-center px-2 text-sm text-marca underline">Descargar CSV del mes</a>
       </form>
 
       <div className={tarjeta}>
         <h2 className="text-lg font-semibold">Resumen de {mes}</h2>
-        <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-1 text-sm @xl:grid-cols-2">
           {[
             ["Vueltas (sin contar en curso)", `${resumen.vueltas} · ${resumen.completas} completas · ${resumen.varadas} varadas`],
             ["Sin cerrar (sin cuadre)", String(resumen.sinCerrar)],
@@ -112,38 +112,40 @@ export default async function Reportes({ searchParams }: PageProps<"/admin/repor
         <p className="text-xs text-texto-suave">Las vueltas en curso aparecen en gris y no suman en el resumen.</p>
       </div>
 
-      <div className={tarjeta}>
-        <h2 className="text-lg font-semibold">Por conductor (últimos 12 meses)</h2>
-        {conductores.length === 0 ? (
-          <p className="text-sm text-texto-suave">Sin datos.</p>
-        ) : (
-          <ul className="flex flex-col gap-2 text-sm">
-            {conductores.map((c) => (
-              <li key={c.conductorId} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
-                <span className="font-medium">{nombre(c.conductorId)}</span>
-                <span className="text-texto-suave">
-                  {c.vueltas} vueltas ({c.comoFlorencia} como Florencia, {c.comoPitalito} como Pitalito)
-                </span>
-                <span>Liquidación de sus vueltas: <Monto valor={c.liquidacionVueltas} color /></span>
-                <span>Registró como &quot;me lo quedé&quot;: <strong><Monto valor={c.quedoConductor} /></strong></span>
-                <span>Diferencias de cuadre en sus vueltas: <Monto valor={c.diferenciaCuadre} color /></span>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className={tarjeta}>
+          <h2 className="text-lg font-semibold">Por conductor (últimos 12 meses)</h2>
+          {conductores.length === 0 ? (
+            <p className="text-sm text-texto-suave">Sin datos.</p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 text-sm @2xl:grid-cols-2">
+              {conductores.map((c) => (
+                <li key={c.conductorId} className="flex flex-col gap-1 neu-pozo p-3">
+                  <span className="font-medium">{nombre(c.conductorId)}</span>
+                  <span className="text-texto-suave">
+                    {c.vueltas} vueltas ({c.comoFlorencia} como Florencia, {c.comoPitalito} como Pitalito)
+                  </span>
+                  <span>Liquidación de sus vueltas: <Monto valor={c.liquidacionVueltas} color /></span>
+                  <span>Registró como &quot;me lo quedé&quot;: <strong><Monto valor={c.quedoConductor} /></strong></span>
+                  <span>Diferencias de cuadre en sus vueltas: <Monto valor={c.diferenciaCuadre} color /></span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-texto-suave">La liquidación y el cuadre son de la vuelta (compartidos por los dos conductores).</p>
+        </div>
+
+        <div className={tarjeta}>
+          <h2 className="text-lg font-semibold">Por mes</h2>
+          <ul className="flex flex-col text-sm">
+            {meses.map(({ mes: m, resumen: r }) => (
+              <li key={m} className="flex flex-wrap justify-between gap-2 border-b border-borde py-1">
+                <Link href={`/admin/reportes?mes=${m}`} className="text-marca underline">{m}</Link>
+                <span>{r.completas} completas · ingreso <Monto valor={r.ingresoReal} /> · liquidación <Monto valor={r.liquidacion} color /></span>
               </li>
             ))}
           </ul>
-        )}
-        <p className="text-xs text-texto-suave">La liquidación y el cuadre son de la vuelta (compartidos por los dos conductores).</p>
-      </div>
-
-      <div className={tarjeta}>
-        <h2 className="text-lg font-semibold">Por mes</h2>
-        <ul className="flex flex-col text-sm">
-          {meses.map(({ mes: m, resumen: r }) => (
-            <li key={m} className="flex flex-wrap justify-between gap-2 border-b border-borde py-1">
-              <Link href={`/admin/reportes?mes=${m}`} className="text-marca underline">{m}</Link>
-              <span>{r.completas} completas · ingreso <Monto valor={r.ingresoReal} /> · liquidación <Monto valor={r.liquidacion} color /></span>
-            </li>
-          ))}
-        </ul>
+        </div>
       </div>
     </section>
   );

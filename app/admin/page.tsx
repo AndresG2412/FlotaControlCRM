@@ -15,7 +15,7 @@ const MODULOS: { titulo: string; detalle: string; icono: LucideIcon; href?: stri
   { titulo: "Configuración", detalle: "Gastos fijos y categorías de repuestos", icono: Settings, href: "/admin/configuracion" },
 ];
 
-const tarjeta = "flex gap-3 rounded-2xl border border-borde bg-superficie p-4";
+const tarjeta = "neu-tarjeta flex items-start gap-4 p-5";
 
 export default async function PanelAdmin() {
   await exigirRol("admin");
@@ -26,10 +26,10 @@ export default async function PanelAdmin() {
     .filter(({ estado }) => estado === "vencido" || estado === "recordar" || estado === "por_vencer");
 
   return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Panel</h1>
+    <section className="flex flex-col gap-6">
+      <h1 className="titulo-pagina">Panel</h1>
       {atencion.length > 0 && (
-        <Link href="/admin/pagos" className="flex flex-col gap-1 rounded-2xl border border-aviso bg-superficie p-4">
+        <Link href="/admin/pagos" className="flex flex-col gap-1 vidrio-aviso rounded-2xl p-4">
           <span className="font-semibold text-aviso">Pagos por renovar</span>
           {atencion.map(({ pago, estado }) => (
             <span key={pago.id} className="text-sm">
@@ -39,13 +39,15 @@ export default async function PanelAdmin() {
           ))}
         </Link>
       )}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {MODULOS.map(({ titulo, detalle, icono: Icono, href }) => {
           const contenido = (
             <>
-              <Icono className="mt-0.5 size-5 shrink-0 text-marca" aria-hidden />
-              <div className="flex flex-col gap-1">
-                <span className="font-medium">{titulo}</span>
+              <span className="neu-logo grid size-11 shrink-0 place-items-center rounded-2xl">
+                <Icono className="size-5" aria-hidden />
+              </span>
+              <div className="flex flex-col gap-0.5 pt-0.5">
+                <span className="font-semibold tracking-tight">{titulo}</span>
                 <span className="text-sm text-texto-suave">{detalle}</span>
                 {!href && <span className="text-xs text-aviso">En construcción</span>}
               </div>
@@ -54,7 +56,7 @@ export default async function PanelAdmin() {
           return (
             <li key={titulo}>
               {href ? (
-                <Link href={href} className={`${tarjeta} h-full hover:border-marca`}>{contenido}</Link>
+                <Link href={href} className={`${tarjeta} h-full neu-enlace`}>{contenido}</Link>
               ) : (
                 <div className={`${tarjeta} h-full`}>{contenido}</div>
               )}
