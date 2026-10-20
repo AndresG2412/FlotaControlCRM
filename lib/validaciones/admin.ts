@@ -159,3 +159,33 @@ export const esquemaEnlazarTrayecto = z
 export type SalidaEntrada = z.infer<typeof esquemaSalida>;
 export type EditarSalida = z.infer<typeof esquemaEditarSalida>;
 export type AdicionalEntrada = z.infer<typeof esquemaAdicional>;
+
+// ---------------------------------------------------------------------------
+// Pagos y vencimientos (paso 8)
+// ---------------------------------------------------------------------------
+const fechaOpcional = z.iso.date("Fecha inválida").nullish();
+
+/** Pago periódico (SOAT, seguro, tecnomecánica, cuota…). Renovar = registrar un pago nuevo. */
+export const esquemaPago = z
+  .object({
+    nombre: z.string().trim().min(1, "Escribe qué se pagó").max(120),
+    fecha_pago: z.iso.date("Fecha de pago inválida"),
+    costo: z.number({ error: "Escribe el costo" }).int("Sin decimales").min(0).max(100_000_000),
+    fecha_recordatorio: fechaOpcional,
+    fecha_vencimiento: fechaOpcional,
+    notas: z.string().trim().max(1000).nullish(),
+    comprobante_path: z
+      .string()
+      .regex(/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/, "Ruta de foto inválida")
+      .nullish(),
+  })
+  .strict()
+  .refine((p) => !p.fecha_recordatorio || !p.fecha_vencimiento || p.fecha_recordatorio <= p.fecha_vencimiento, {
+    path: ["fecha_recordatorio"],
+    message: "El recordatorio debe ser antes del vencimiento",
+  })
+  .refine((p) => !p.fecha_vencimiento || p.fecha_vencimiento >= p.fecha_pago, {
+    path: ["fecha_vencimiento"],
+    message: "El vencimiento no puede ser antes del pago",
+  });
+export type PagoEntrada = z.infer<typeof esquemaPago>;

@@ -273,7 +273,7 @@ Diseño de la sincronización (paso 2):
 
 ### Seguridad
 - RLS activo en **todas** las tablas desde la primera migración. El rol se valida en la base de datos, no solo en la UI.
-- La `service_role` key solo en servidor, jamás en código de cliente ni en variables `NEXT_PUBLIC_*`.
+- La `service_role` key solo en servidor, jamás en código de cliente ni en variables `NEXT_PUBLIC_*`. Hoy la usa únicamente el cron de recordatorios (`lib/supabase/servicio.ts`), después de verificar `CRON_SECRET`.
 - Toda escritura de datos pasa por Server Actions / Route Handlers con validación Zod. La única excepción es la subida de fotos a Storage desde el navegador, protegida por las políticas del bucket. La RLS y los checks de Postgres son la última defensa: aunque alguien llame la API de Supabase directamente, no puede saltárselos.
 - Usar la skill `seguridad-web` al diseñar tablas, auth, subida de archivos o antes de producción.
 
@@ -298,6 +298,7 @@ app/
     configuracion/       # índice; gastos-fijos/ = vigentes, formulario por fecha e historial (acciones.ts, formulario.tsx); categorias/ de repuestos
     repuestos/           # historial filtrable, último cambio por categoría, registrar/corregir/eliminar (acciones.ts también crea y desactiva categorías)
     programacion/        # calendario del mes, salidas, adicionales, regresos, trayectos sin salida
+    pagos/               # vigentes con estado, renovar, comprobante, historial, eliminar
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
       acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
@@ -306,6 +307,7 @@ app/
                          # agenda/ = próximas salidas, regreso pendiente y vencimientos (solo lectura, sin señal)
   sin-conexion/          # respaldo offline del service worker
   api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
+  api/cron/recordatorios/ # cron diario (Vercel): correo de pagos por renovar (Bearer CRON_SECRET)
   serwist/[path]/        # sirve el service worker
   sw.ts                  # código del service worker
   manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
@@ -316,6 +318,7 @@ lib/
     gastos-fijos.ts      # configuración de gastos fijos
     repuestos.ts         # historial de repuestos, categorías, buseta principal
     programacion.ts      # salidas del mes (con margen) y trayectos sin salida
+    pagos.ts             # pagos periódicos con comprobante firmado
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
@@ -323,6 +326,7 @@ lib/
     gastos-fijos.ts      # fijosVigentes (igual que el trigger cargar_gastos_fijos), historialPorConcepto, totalFijos
     planillas.ts         # estado de cada terminal (registrada, sin planilla, pendiente); conductor y admin
     repuestos.ts         # filtrar historial (días de Bogotá, sin tildes), último por categoría, revisar hora
+    vencimientos.ts      # vigentes por concepto, estado, por recordar, correo (escapado)
   offline/               # IndexedDB (Dexie) + cola de sincronización
     operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
     db.ts                # tablas locales: cola, registros, fotos, ajustes
@@ -334,7 +338,8 @@ lib/
     acciones-conductor.ts # iniciar vuelta/trayecto, planilla, pasajero, encomienda, varada, finalizar (sin señal)
     vista-repuestos.ts   # historial local de repuestos (propio = lo puede corregir)
     use-consulta.ts      # hook: consulta reactiva a la base local
-  supabase/              # clientes servidor/navegador/proxy + tipos generados
+  recordatorios.ts       # lógica del cron (dependencias inyectadas, con tests); correo.ts = envío por Resend
+  supabase/              # clientes servidor/navegador/proxy + servicio.ts (llave secreta, solo cron) + tipos generados
   validaciones/          # esquemas Zod compartidos formulario ↔ servidor (admin.ts: filtros y acciones del panel)
 supabase/
   migrations/
@@ -353,7 +358,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 5. ✅ Gastos fijos (configuración) y variables (ACPM, ligas, extras, arreglos) + liquidación y cuadre, solo para admin. Conductor (diseño provisional, sin señal): sección "Gastos" con botones por tipo, foto del recibo opcional, corregir y eliminar con confirmación, sin ninguna suma. Admin: `/admin/configuracion/gastos-fijos` (vigentes, cambiar/agregar/quitar con fecha, historial), detalle de la vuelta con liquidación (ganancia verde / pérdida roja), cuadre de caja, gastos fijos (ajustables por vuelta) y variables (eliminar con motivo), cerrar con confirmación del cuadre, reabrir cerrada con motivo, y liquidación en la lista. Probado contra la base en una transacción revertida: la vista y `liquidar()`/`diferenciaCuadre()` coinciden. Migración `20261012213649_cierre_vuelta`.
 6. ✅ Repuestos con foto. Conductor (diseño provisional, sin señal): pestaña "Repuestos" con historial compartido de la buseta (búsqueda y filtro por categoría), "último cambio por categoría" (hace N días), registrar con categoría, foto, kilometraje, costo, taller, notas y "se cambió en ruta" (enlaza la vuelta en curso); corrige y elimina (anula con confirmación y motivo) solo los suyos. Admin: `/admin/repuestos` (historial filtrable por categoría, mes y texto, foto con URL firmada, quién registró, "revisar hora", registrar, corregir, eliminar) y `/admin/configuracion/categorias` (agregar, activar o desactivar; no se borran). El gasto "Arreglo en ruta" remite a Repuestos. Sin migraciones: la base ya tenía tablas y permisos. Falta probarlo con sesión real (la base estaba pausada al terminar).
 7. ✅ Programación mensual (digitada) + regresos pendientes + salidas adicionales. Migración `20261020123104_trayectos_con_salida_programada`: `trayectos.salida_programada_id` (una salida, un trayecto). Al crear un trayecto se enlaza solo con la salida pendiente del mismo día y sentido, y esa salida queda `realizada` (también el regreso). El enlace solo lo cambia el admin. Admin (diseño provisional): `/admin/programacion` con calendario del mes (disponible, en Cali esperando regreso), "Guardar y seguir" para digitar el mes rápido, corregir o cancelar (con motivo) salidas pendientes, salida adicional (cancela la del día siguiente), regresos (pendiente, atrasado, programado, hecho) y "trayectos sin salida" (registrarlo como adicional o enlazarlo a una pendiente). Conductor: pestaña "Agenda" (sin señal) con próximas salidas, regreso pendiente y vencimientos. Probado contra la base en una transacción revertida. Falta probar las pantallas con sesión real. La foto de la tabla de programación como referencia quedó sin hacer.
-8. Pagos y vencimientos con recordatorio por correo.
+8. ✅ Pagos y vencimientos con recordatorio por correo. Admin (diseño provisional): `/admin/pagos` con los vigentes (último pago por concepto) y su estado (vencido, toca renovar, por vencer, al día), "Registrar renovación" prellenado, comprobante opcional (se sube comprimido a la carpeta del admin), historial y eliminar (anular con motivo); el inicio del panel muestra los pagos por renovar. Correo: Vercel Cron diario a las 7:00 de Bogotá (`vercel.json`) → `/api/cron/recordatorios` (exige `Authorization: Bearer CRON_SECRET`, comparación en tiempo constante) → un solo correo por Resend con lo que toca renovar, y marca `recordatorio_enviado_en` (si el correo falla no marca y se reintenta al otro día). Es el **único** uso de la llave secreta (`lib/supabase/servicio.ts`). Falta: crear la cuenta de Resend, configurar las variables en Vercel y probar un envío real.
 9. Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor).
 
 ---
