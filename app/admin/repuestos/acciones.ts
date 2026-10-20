@@ -37,9 +37,9 @@ export async function guardarRepuestoAdmin(entrada: RepuestoAdminEntrada): Promi
       .update({
         categoria_id: campos.categoria_id,
         nombre: campos.nombre,
-        costo: campos.costo ?? null,
-        kilometraje: campos.kilometraje ?? null,
-        taller: campos.taller ?? null,
+        fecha_cambio: campos.fecha_cambio,
+        costo: campos.costo,
+        taller: campos.taller,
         notas: campos.notas ?? null,
       })
       .eq("id", id)

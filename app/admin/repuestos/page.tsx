@@ -5,6 +5,7 @@ import { formatearPesos } from "@/lib/dominio/dinero";
 import { formatearFechaHora, hoyEnBogota } from "@/lib/dominio/fechas";
 import { diasDesde, ultimoPorCategoria } from "@/lib/dominio/repuestos";
 import { esquemaFiltrosRepuestos } from "@/lib/validaciones/admin";
+import { fechaCorta } from "../vueltas/etiquetas";
 import { AccionesRepuesto, NuevoRepuesto } from "./controles";
 
 export const metadata = { title: "Repuestos" };
@@ -50,7 +51,7 @@ export default async function Repuestos({ searchParams }: PageProps<"/admin/repu
             <li key={categoria.id} className="flex justify-between gap-2 border-b border-borde py-1">
               <span className={categoria.activa ? "" : "text-texto-suave"}>{categoria.nombre}</span>
               <span className="text-right text-texto-suave">
-                {ultimo ? `${ultimo.nombre} · ${formatearFechaHora(ultimo.ocurrido_en)} (hace ${diasDesde(ultimo.ocurrido_en, hoy)} días)` : "Sin registros"}
+                {ultimo ? `${ultimo.nombre} · ${fechaCorta(ultimo.fecha_cambio)} (hace ${diasDesde(ultimo.fecha_cambio, hoy)} días)` : "Sin registros"}
               </span>
             </li>
           ))}
@@ -94,8 +95,7 @@ export default async function Repuestos({ searchParams }: PageProps<"/admin/repu
               </div>
               <span className="monto text-sm text-texto-suave">
                 {[
-                  formatearFechaHora(r.ocurrido_en),
-                  r.kilometraje != null && `${r.kilometraje.toLocaleString("es-CO")} km`,
+                  `Cambiado ${fechaCorta(r.fecha_cambio)}`,
                   r.costo != null && formatearPesos(r.costo),
                   r.taller,
                   r.vuelta_id && "cambiado en ruta",

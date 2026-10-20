@@ -669,9 +669,9 @@ export type Database = {
           categoria_id: number
           costo: number | null
           estado: string
+          fecha_cambio: string
           foto_path: string | null
           id: string
-          kilometraje: number | null
           motivo_anulacion: string | null
           nombre: string
           notas: string | null
@@ -688,9 +688,9 @@ export type Database = {
           categoria_id: number
           costo?: number | null
           estado?: string
+          fecha_cambio?: string
           foto_path?: string | null
           id?: string
-          kilometraje?: number | null
           motivo_anulacion?: string | null
           nombre: string
           notas?: string | null
@@ -707,9 +707,9 @@ export type Database = {
           categoria_id?: number
           costo?: number | null
           estado?: string
+          fecha_cambio?: string
           foto_path?: string | null
           id?: string
-          kilometraje?: number | null
           motivo_anulacion?: string | null
           nombre?: string
           notas?: string | null

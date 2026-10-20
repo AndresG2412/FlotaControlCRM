@@ -155,10 +155,11 @@ export type DatosRepuesto = {
   buseta_id: string;
   categoria_id: number;
   nombre: string;
+  /** Día del cambio (Bogotá): hoy por defecto, puede ser anterior, nunca futuro. */
+  fecha_cambio: string;
   foto_path?: string | null;
-  costo?: number | null;
-  kilometraje?: number | null;
-  taller?: string | null;
+  costo: number;
+  taller: string;
   notas?: string | null;
   /** Se cambió en ruta durante esta vuelta (opcional). */
   vuelta_id?: string | null;
@@ -180,7 +181,7 @@ export async function guardarRepuesto(db: BaseLocal, uid: string, datos: DatosRe
       // Corregir conserva cuándo se cambió; solo un registro nuevo toma la hora actual.
       ocurrido_en: typeof previo?.datos.ocurrido_en === "string" ? previo.datos.ocurrido_en : ahora(),
       nombre: datos.nombre.trim(),
-      taller: datos.taller?.trim() || null,
+      taller: datos.taller.trim(),
       notas: datos.notas?.trim() || null,
     },
     previo ? {} : { registrado_por: uid, estado: "activo" },

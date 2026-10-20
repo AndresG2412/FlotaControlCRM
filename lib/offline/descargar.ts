@@ -54,7 +54,12 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     supabase.from("perfiles").select("id, nombre"),
     supabase.from("repuesto_categorias").select("id, nombre, activa").order("id"),
     // Historial compartido de la buseta (todos lo ven), más recientes primero.
-    supabase.from("repuestos").select("*").order("ocurrido_en", { ascending: false }).limit(MAX_REPUESTOS),
+    supabase
+      .from("repuestos")
+      .select("*")
+      .order("fecha_cambio", { ascending: false })
+      .order("ocurrido_en", { ascending: false })
+      .limit(MAX_REPUESTOS),
     supabase
       .from("programacion_salidas")
       .select("id, fecha, hora, sentido, tipo, estado, cancelada_por_id")

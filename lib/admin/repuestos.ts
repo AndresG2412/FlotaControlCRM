@@ -17,8 +17,8 @@ export type RepuestoAdmin = {
   categoria_id: number;
   categoria: string;
   nombre: string;
+  fecha_cambio: string;
   costo: number | null;
-  kilometraje: number | null;
   taller: string | null;
   notas: string | null;
   vuelta_id: string | null;
@@ -42,10 +42,7 @@ export async function listarCategorias(): Promise<Categoria[]> {
   return data;
 }
 
-/**
- * Historial de repuestos, más recientes primero. El mes se toma en hora de
- * Bogotá sobre ocurrido_en (cuándo se cambió, aunque haya llegado después).
- */
+/** Historial de repuestos por fecha del cambio, más recientes primero. */
 export async function listarRepuestos(filtros: FiltrosRepuestos = {}): Promise<RepuestoAdmin[]> {
   await exigirRol("admin");
   const supabase = await crearClienteServidor();
@@ -53,19 +50,20 @@ export async function listarRepuestos(filtros: FiltrosRepuestos = {}): Promise<R
   let consulta = supabase
     .from("repuestos")
     .select(
-      `id, buseta_id, categoria_id, nombre, costo, kilometraje, taller, notas, vuelta_id, foto_path,
+      `id, buseta_id, categoria_id, nombre, fecha_cambio, costo, taller, notas, vuelta_id, foto_path,
        estado, motivo_anulacion, ocurrido_en, sincronizado_en, registrado_por, actualizado_por, actualizado_en,
        repuesto_categorias ( nombre )`,
     )
+    .order("fecha_cambio", { ascending: false })
     .order("ocurrido_en", { ascending: false })
     .limit(MAX_REPUESTOS_LISTA);
 
   if (filtros.categoria) consulta = consulta.eq("categoria_id", filtros.categoria);
   if (!filtros.anulados) consulta = consulta.eq("estado", "activo");
   if (filtros.mes) {
+    // fecha_cambio ya es un día de Bogotá (date): el mes se filtra directo.
     const { desde, hasta } = rangoDelMes(filtros.mes);
-    // Medianoche de Bogotá (UTC−5, sin horario de verano).
-    consulta = consulta.gte("ocurrido_en", `${desde}T00:00:00-05:00`).lte("ocurrido_en", `${hasta}T23:59:59.999-05:00`);
+    consulta = consulta.gte("fecha_cambio", desde).lte("fecha_cambio", hasta);
   }
   if (filtros.texto) consulta = consulta.ilike("nombre", `%${filtros.texto.replace(/[%_\\]/g, "\\$&")}%`);
 
@@ -80,8 +78,8 @@ export async function listarRepuestos(filtros: FiltrosRepuestos = {}): Promise<R
     categoria_id: r.categoria_id,
     categoria: r.repuesto_categorias?.nombre ?? "Sin categoría",
     nombre: r.nombre,
+    fecha_cambio: r.fecha_cambio,
     costo: r.costo,
-    kilometraje: r.kilometraje,
     taller: r.taller,
     notas: r.notas,
     vuelta_id: r.vuelta_id,

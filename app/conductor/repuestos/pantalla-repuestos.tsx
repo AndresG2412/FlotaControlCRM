@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { ZodError } from "zod";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
-import { formatearFechaHora, hoyEnBogota } from "@/lib/dominio/fechas";
+import { hoyEnBogota } from "@/lib/dominio/fechas";
+import { fechaCorta } from "@/app/admin/vueltas/etiquetas";
 import { diasDesde, filtrarRepuestos, ultimoPorCategoria } from "@/lib/dominio/repuestos";
 import { guardarRepuesto } from "@/lib/offline/acciones-conductor";
 import { sincronizarAhora } from "@/lib/offline/ciclo";
@@ -111,7 +112,7 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
               <li key={categoria.id} className="flex justify-between gap-2">
                 <span>{categoria.nombre}</span>
                 <span className="text-right text-texto-suave">
-                  {ultimo!.nombre} · hace {diasDesde(ultimo!.ocurrido_en, hoy)} días
+                  {ultimo!.nombre} · hace {diasDesde(ultimo!.fecha_cambio, hoy)} días
                 </span>
               </li>
             ))}
@@ -143,8 +144,7 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
               </div>
               <span className="monto text-sm text-texto-suave">
                 {[
-                  formatearFechaHora(r.ocurrido_en),
-                  r.kilometraje != null && `${r.kilometraje.toLocaleString("es-CO")} km`,
+                  fechaCorta(r.fecha_cambio),
                   r.costo != null && formatearPesos(r.costo),
                   r.taller,
                   r.foto_path && "con foto",
@@ -198,7 +198,8 @@ function FormularioRepuesto({
 }) {
   const [categoriaId, setCategoriaId] = useState<number | null>(editar?.categoria_id ?? null);
   const [nombre, setNombre] = useState(editar?.nombre ?? "");
-  const [kilometraje, setKilometraje] = useState(editar?.kilometraje != null ? String(editar.kilometraje) : "");
+  const hoy = hoyEnBogota();
+  const [fecha, setFecha] = useState(editar?.fecha_cambio ?? hoy);
   const [costo, setCosto] = useState(editar?.costo != null ? String(editar.costo) : "");
   const [taller, setTaller] = useState(editar?.taller ?? "");
   const [notas, setNotas] = useState(editar?.notas ?? "");
@@ -211,9 +212,10 @@ function FormularioRepuesto({
     e.preventDefault();
     setError(null);
     if (categoriaId === null) return setError("Elige la categoría");
-    const valorCosto = costo.trim() ? leerPesos(costo) : null;
-    if (costo.trim() && valorCosto === null) return setError("El costo va en pesos, sin decimales");
-    const km = kilometraje.trim() ? Number(kilometraje.replace(/\D/g, "")) : null;
+    if (!fecha || fecha > hoy) return setError("Elige la fecha del cambio (hoy o un día anterior)");
+    const valorCosto = leerPesos(costo);
+    if (valorCosto === null || valorCosto < 1) return setError("Escribe el precio en pesos, sin decimales");
+    if (!taller.trim()) return setError("Escribe el taller");
 
     setGuardando(true);
     try {
@@ -224,9 +226,9 @@ function FormularioRepuesto({
         buseta_id: editar?.buseta_id ?? busetaId,
         categoria_id: categoriaId,
         nombre,
+        fecha_cambio: fecha,
         foto_path,
         costo: valorCosto,
-        kilometraje: km,
         taller,
         notas,
         vuelta_id: enRuta ? (editar?.vuelta_id ?? vueltaEnCursoId) : null,
@@ -261,22 +263,24 @@ function FormularioRepuesto({
       </label>
 
       <label className="flex flex-col gap-1">
+        <span className="text-sm">¿Cuándo se cambió?</span>
+        {/* Hoy por defecto; se puede elegir un día anterior, nunca uno futuro. */}
+        <input type="date" className={campo} value={fecha} max={hoy} required onChange={(e) => setFecha(e.target.value)} />
+      </label>
+
+      <label className="flex flex-col gap-1">
         <span className="text-sm">Foto (opcional)</span>
         <input type="file" accept="image/*" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
         {editar?.foto_path && !foto && <span className="text-xs text-texto-suave">Ya tiene foto; elige otra solo si quieres cambiarla.</span>}
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm">Kilometraje (opcional)</span>
-        <input className={campo} inputMode="numeric" value={kilometraje} onChange={(e) => setKilometraje(e.target.value)} placeholder="152.300" />
+        <span className="text-sm">Precio</span>
+        <input className={campo} inputMode="numeric" value={costo} required onChange={(e) => setCosto(e.target.value)} placeholder="180.000" />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-sm">Costo (opcional)</span>
-        <input className={campo} inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="180.000" />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Taller (opcional)</span>
-        <input className={campo} value={taller} maxLength={120} onChange={(e) => setTaller(e.target.value)} />
+        <span className="text-sm">Taller</span>
+        <input className={campo} value={taller} maxLength={120} required onChange={(e) => setTaller(e.target.value)} placeholder="Taller El Paisa" />
       </label>
       <label className="flex flex-col gap-1">
         <span className="text-sm">Notas (opcional)</span>

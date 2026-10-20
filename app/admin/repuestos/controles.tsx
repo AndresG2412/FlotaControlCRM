@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { RepuestoAdmin } from "@/lib/admin/repuestos";
 import { leerPesos } from "@/lib/dominio/dinero";
+import { hoyEnBogota } from "@/lib/dominio/fechas";
 import type { Categoria } from "@/lib/dominio/repuestos";
 import { anularRepuesto, guardarRepuestoAdmin, type Resultado } from "./acciones";
 
@@ -67,7 +68,8 @@ function FormularioRepuesto({
 }) {
   const [categoria, setCategoria] = useState(editar ? String(editar.categoria_id) : "");
   const [nombre, setNombre] = useState(editar?.nombre ?? "");
-  const [kilometraje, setKilometraje] = useState(editar?.kilometraje != null ? String(editar.kilometraje) : "");
+  const hoy = hoyEnBogota();
+  const [fecha, setFecha] = useState(editar?.fecha_cambio ?? hoy);
   const [costo, setCosto] = useState(editar?.costo != null ? String(editar.costo) : "");
   const [taller, setTaller] = useState(editar?.taller ?? "");
   const [notas, setNotas] = useState(editar?.notas ?? "");
@@ -78,8 +80,10 @@ function FormularioRepuesto({
     e.preventDefault();
     setAviso(null);
     if (!categoria) return setAviso("Elige la categoría");
-    const valorCosto = costo.trim() ? leerPesos(costo) : null;
-    if (costo.trim() && valorCosto === null) return setAviso("El costo va en pesos, sin decimales");
+    if (!fecha || fecha > hoy) return setAviso("Elige la fecha del cambio (hoy o un día anterior)");
+    const valorCosto = leerPesos(costo);
+    if (valorCosto === null || valorCosto < 1) return setAviso("Escribe el precio en pesos, sin decimales");
+    if (!taller.trim()) return setAviso("Escribe el taller");
     ejecutar(
       () =>
         guardarRepuestoAdmin({
@@ -87,10 +91,10 @@ function FormularioRepuesto({
           buseta_id: editar?.buseta_id ?? busetaId,
           categoria_id: Number(categoria),
           nombre,
+          fecha_cambio: fecha,
           foto_path: editar?.foto_path ?? null,
           costo: valorCosto,
-          kilometraje: kilometraje.trim() ? Number(kilometraje.replace(/\D/g, "")) : null,
-          taller: taller.trim() || null,
+          taller: taller.trim(),
           notas: notas.trim() || null,
           vuelta_id: editar?.vuelta_id ?? null,
         }),
@@ -114,16 +118,17 @@ function FormularioRepuesto({
           <input className={campo} value={nombre} maxLength={120} required onChange={(e) => setNombre(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Kilometraje (opcional)
-          <input className={campo} inputMode="numeric" value={kilometraje} onChange={(e) => setKilometraje(e.target.value)} />
+          ¿Cuándo se cambió?
+          {/* Hoy por defecto; se puede elegir un día anterior, nunca uno futuro. */}
+          <input type="date" className={campo} value={fecha} max={hoy} required onChange={(e) => setFecha(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Costo (opcional)
-          <input className={campo} inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} />
+          Precio
+          <input className={campo} inputMode="numeric" value={costo} required onChange={(e) => setCosto(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Taller (opcional)
-          <input className={campo} value={taller} maxLength={120} onChange={(e) => setTaller(e.target.value)} />
+          Taller
+          <input className={campo} value={taller} maxLength={120} required onChange={(e) => setTaller(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           Notas (opcional)

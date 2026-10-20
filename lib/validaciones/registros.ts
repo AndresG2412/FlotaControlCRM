@@ -3,6 +3,7 @@
 // checks de la base: si cambia una migración, cambiar aquí también.
 
 import { z } from "zod";
+import { hoyEnBogota } from "@/lib/dominio/fechas";
 import { destinosDeEncomienda, terminalDeFacturacion } from "@/lib/dominio/polilla";
 import { buscarTramo, destinosPosibles, terminalesConPlanilla } from "@/lib/dominio/ruta";
 
@@ -188,15 +189,21 @@ export const esquemaGastoVariable = z
     }
   });
 
+/**
+ * Repuesto. fecha_cambio es el día (Bogotá) en que se cambió la pieza: por
+ * defecto hoy, puede ser anterior, nunca futuro. Precio y taller son obligatorios.
+ */
 export const esquemaRepuesto = z.object({
   ...base,
   buseta_id: z.uuid(),
-  categoria_id: z.number().int().positive(),
+  categoria_id: z.number({ error: "Elige la categoría" }).int().positive("Elige la categoría"),
   nombre: z.string().trim().min(1, "Escribe el repuesto").max(120),
+  fecha_cambio: z.iso
+    .date("Elige la fecha del cambio")
+    .refine((f) => f <= hoyEnBogota(), "La fecha no puede ser futura"),
   foto_path: rutaFoto,
-  costo: pesos(50_000_000).nullish(),
-  kilometraje: z.number().int().min(0).max(5_000_000).nullish(),
-  taller: textoOpcional(120),
+  costo: pesosPositivos(50_000_000),
+  taller: z.string({ error: "Escribe el taller" }).trim().min(1, "Escribe el taller").max(120),
   notas: textoOpcional(1000),
   vuelta_id: z.uuid().nullish(),
 });
