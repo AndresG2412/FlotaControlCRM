@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ZodError } from "zod";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
@@ -180,6 +181,12 @@ function FormularioGasto({
           <span className="text-sm">{tipo === "arreglo" ? "¿Qué se arregló?" : "¿En qué fue?"}</span>
           <input className={campo} value={descripcion} maxLength={200} onChange={(e) => setDescripcion(e.target.value)} placeholder={tipo === "arreglo" ? "Llanta pinchada" : "Almuerzo"} />
         </label>
+      )}
+      {tipo === "arreglo" && (
+        <p className="text-xs text-texto-suave">
+          Si se cambió una pieza, regístrala también en <Link href="/conductor/repuestos" className="text-marca underline">Repuestos</Link>{" "}
+          marcando &quot;se cambió en ruta&quot;, para que quede en el historial de la buseta.
+        </p>
       )}
 
       <label className="flex flex-col gap-1">

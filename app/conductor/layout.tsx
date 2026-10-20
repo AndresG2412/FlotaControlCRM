@@ -1,6 +1,7 @@
 import { exigirRol } from "@/lib/auth/sesion";
 import { BotonSalir } from "../boton-salir";
 import { EstadoSincronizacion } from "./estado-sincronizacion";
+import { NavegacionConductor } from "./navegacion";
 
 export const metadata = { title: "Mi vuelta" };
 
@@ -19,6 +20,7 @@ export default async function LayoutConductor({ children }: LayoutProps<"/conduc
           </div>
           <BotonSalir />
         </div>
+        <NavegacionConductor />
       </header>
       <main className="mx-auto w-full max-w-md flex-1 p-4">{children}</main>
     </div>

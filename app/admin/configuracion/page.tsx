@@ -1,4 +1,4 @@
-import { Receipt } from "lucide-react";
+import { Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 import { exigirRol } from "@/lib/auth/sesion";
 
@@ -14,6 +14,15 @@ export default async function Configuracion() {
             <div className="flex flex-col gap-1">
               <span className="font-medium">Gastos fijos</span>
               <span className="text-sm text-texto-suave">Valores por vuelta, con fecha de vigencia</span>
+            </div>
+          </Link>
+        </li>
+        <li>
+          <Link href="/admin/configuracion/categorias" className="flex h-full gap-3 rounded-2xl border border-borde bg-superficie p-4 hover:border-marca">
+            <Wrench className="mt-0.5 size-5 shrink-0 text-marca" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <span className="font-medium">Categorías de repuestos</span>
+              <span className="text-sm text-texto-suave">Agregar o desactivar categorías</span>
             </div>
           </Link>
         </li>

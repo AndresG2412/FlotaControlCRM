@@ -13,6 +13,7 @@ import {
   type TipoVuelta,
 } from "@/lib/dominio/vuelta";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { nombreDe, nombres, urlsDeFotos, type Cliente } from "./comun";
 import type { FiltrosVueltas } from "@/lib/validaciones/admin";
 
 // Lectura de vueltas para el panel del admin. Usa la sesión del admin (la RLS
@@ -20,8 +21,6 @@ import type { FiltrosVueltas } from "@/lib/validaciones/admin";
 // Los totales de ingreso salen solo de la vista reporte_vueltas (nunca se
 // recalculan aquí), igual que gastos, liquidación y cuadre.
 
-/** Las URLs firmadas de fotos vencen pronto; recargar la página genera otras. */
-const SEGUNDOS_URL_FOTO = 10 * 60;
 const MAX_VUELTAS_LISTA = 200;
 
 export type Persona = { id: string; nombre: string };
@@ -187,16 +186,6 @@ export type VueltaDetalle = {
   cierresReemplazados: CierreReemplazado[];
 };
 
-type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
-
-async function nombres(supabase: Cliente): Promise<Map<string, string>> {
-  const { data, error } = await supabase.from("perfiles").select("id, nombre");
-  if (error) throw new Error("No se pudieron leer los usuarios");
-  return new Map(data.map((p) => [p.id, p.nombre]));
-}
-
-const nombreDe = (mapa: Map<string, string>, id: string | null) =>
-  id ? (mapa.get(id) ?? "Usuario desconocido") : null;
 
 /** Lista de vueltas con conductores y avance de planillas, más recientes primero. */
 export async function listarVueltas(filtros: FiltrosVueltas = {}): Promise<VueltaEnLista[]> {
@@ -553,15 +542,4 @@ export async function listarConductores(): Promise<Persona[]> {
     .order("nombre");
   if (error) throw new Error("No se pudieron leer los conductores");
   return data;
-}
-
-/**
- * URLs firmadas de corta duración (bucket privado evidencias). Se generan con la
- * sesión del admin: la política del bucket le deja leer todas las fotos.
- */
-async function urlsDeFotos(supabase: Cliente, rutas: string[]): Promise<Map<string, string>> {
-  if (rutas.length === 0) return new Map();
-  const { data, error } = await supabase.storage.from("evidencias").createSignedUrls(rutas, SEGUNDOS_URL_FOTO);
-  if (error || !data) return new Map();
-  return new Map(data.flatMap((f) => (f.path && f.signedUrl && !f.error ? [[f.path, f.signedUrl] as const] : [])));
 }

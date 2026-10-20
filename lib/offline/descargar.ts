@@ -1,7 +1,7 @@
 // Trae del servidor lo que el conductor necesita tener en el celular: la vuelta
-// en curso con sus trayectos, planillas, pasajeros de vía, encomiendas y gastos variables, la
-// buseta y los conductores. Lectura con
-// la sesión del usuario (RLS). Nunca pisa lo que aún no se ha enviado.
+// en curso con sus trayectos, planillas, pasajeros de vía, encomiendas y gastos
+// variables; el historial de repuestos con sus categorías; la buseta y los
+// usuarios. Lectura con la sesión del usuario (RLS). Nunca pisa lo que aún no se ha enviado.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/tipos";
@@ -12,9 +12,16 @@ import type { Tabla } from "./operaciones";
 export const AJUSTE_BUSETAS = "busetas";
 export const AJUSTE_CONDUCTORES = "conductores";
 export const AJUSTE_ULTIMA_DESCARGA = "ultimaDescarga";
+export const AJUSTE_CATEGORIAS = "categoriasRepuestos";
+/** Nombres de todos los usuarios (para mostrar quién registró un repuesto). */
+export const AJUSTE_PERSONAS = "personas";
+
+/** Repuestos que se guardan en el celular para consultar el historial sin señal. */
+const MAX_REPUESTOS = 300;
 
 export type BusetaCache = { id: string; placa: string; numero_interno: string | null };
 export type ConductorCache = { id: string; nombre: string };
+export type CategoriaCache = { id: number; nombre: string; activa: boolean };
 
 type Cliente = SupabaseClient<Database>;
 
@@ -23,12 +30,18 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
   const locales = (await db.registros.where("tabla").equals("vueltas").toArray()).map((r) => r.id);
   const filtro = locales.length ? `estado.eq.en_curso,id.in.(${locales.join(",")})` : "estado.eq.en_curso";
 
-  const [vueltas, busetas, conductores] = await Promise.all([
+  const [vueltas, busetas, conductores, personas, categorias, repuestos] = await Promise.all([
     supabase.from("vueltas").select("*").or(filtro),
     supabase.from("busetas").select("id, placa, numero_interno").eq("activa", true),
     supabase.from("perfiles").select("id, nombre").eq("rol", "conductor").eq("activo", true).order("nombre"),
+    supabase.from("perfiles").select("id, nombre"),
+    supabase.from("repuesto_categorias").select("id, nombre, activa").order("id"),
+    // Historial compartido de la buseta (todos lo ven), más recientes primero.
+    supabase.from("repuestos").select("*").order("ocurrido_en", { ascending: false }).limit(MAX_REPUESTOS),
   ]);
-  if (vueltas.error || busetas.error || conductores.error) throw new Error("No se pudo descargar");
+  if (vueltas.error || busetas.error || conductores.error || personas.error || categorias.error || repuestos.error) {
+    throw new Error("No se pudo descargar");
+  }
 
   const idsVueltas = vueltas.data.map((v) => v.id);
   const trayectos = idsVueltas.length
@@ -68,6 +81,7 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     ...pasajeros.data.map((p) => aRegistro("polilla_pasajeros", p)),
     ...encomiendas.data.map((e) => aRegistro("encomiendas", e)),
     ...gastos.data.map((g) => aRegistro("gastos_variables", g)),
+    ...repuestos.data.map((r) => aRegistro("repuestos", r)),
   ].filter((r) => !pendientes.has(r.id)); // lo local sin enviar manda
 
   await db.transaction("rw", db.registros, db.ajustes, async () => {
@@ -79,6 +93,8 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     await db.ajustes.bulkPut([
       { clave: AJUSTE_BUSETAS, valor: busetas.data satisfies BusetaCache[] },
       { clave: AJUSTE_CONDUCTORES, valor: conductores.data satisfies ConductorCache[] },
+      { clave: AJUSTE_PERSONAS, valor: personas.data satisfies ConductorCache[] },
+      { clave: AJUSTE_CATEGORIAS, valor: categorias.data satisfies CategoriaCache[] },
       { clave: AJUSTE_ULTIMA_DESCARGA, valor: ahora },
     ]);
   });

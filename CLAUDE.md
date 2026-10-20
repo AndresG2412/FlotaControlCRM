@@ -295,11 +295,13 @@ proxy.ts                 # refresca la sesión y protege /admin y /conductor
 app/
   (auth)/login           # login por usuario ("pedro" → pedro@flotacontrol.local)
   admin/                 # panel del dueño (exigirRol('admin') en layout y en cada page)
-    configuracion/       # índice; gastos-fijos/ = vigentes, formulario por fecha e historial (acciones.ts, formulario.tsx)
+    configuracion/       # índice; gastos-fijos/ = vigentes, formulario por fecha e historial (acciones.ts, formulario.tsx); categorias/ de repuestos
+    repuestos/           # historial filtrable, último cambio por categoría, registrar/corregir/eliminar (acciones.ts también crea y desactiva categorías)
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
       acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
                          # pantalla-vuelta.tsx, formulario-planilla.tsx, polilla.tsx y gastos.tsx: diseño provisional
+                         # navegacion.tsx (Mi vuelta / Repuestos); repuestos/ = historial y formulario sin señal
   sin-conexion/          # respaldo offline del service worker
   api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
   serwist/[path]/        # sirve el service worker
@@ -307,14 +309,17 @@ app/
   manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
 lib/
   admin/                 # lecturas del panel (server-only, exigirRol('admin') en cada función)
+    comun.ts             # nombres de usuarios, URLs firmadas de fotos (compartido)
     vueltas.ts           # listarVueltas (con liquidación), detalleVuelta (fotos firmadas, gastos, liquidación y cuadre desde reporte_vueltas), listarConductores
     gastos-fijos.ts      # configuración de gastos fijos
+    repuestos.ts         # historial de repuestos, categorías, buseta principal
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
     vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0, qué puede hacer el admin
     gastos-fijos.ts      # fijosVigentes (igual que el trigger cargar_gastos_fijos), historialPorConcepto, totalFijos
     planillas.ts         # estado de cada terminal (registrada, sin planilla, pendiente); conductor y admin
+    repuestos.ts         # filtrar historial (días de Bogotá, sin tildes), último por categoría, revisar hora
   offline/               # IndexedDB (Dexie) + cola de sincronización
     operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
     db.ts                # tablas locales: cola, registros, fotos, ajustes
@@ -324,6 +329,7 @@ lib/
     descargar.ts         # trae vuelta en curso, trayectos, planillas, buseta y conductores
     vista.ts             # arma la pantalla de la vuelta desde lo local (puro, con tests)
     acciones-conductor.ts # iniciar vuelta/trayecto, planilla, pasajero, encomienda, varada, finalizar (sin señal)
+    vista-repuestos.ts   # historial local de repuestos (propio = lo puede corregir)
     use-consulta.ts      # hook: consulta reactiva a la base local
   supabase/              # clientes servidor/navegador/proxy + tipos generados
   validaciones/          # esquemas Zod compartidos formulario ↔ servidor (admin.ts: filtros y acciones del panel)
@@ -342,7 +348,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 3. ✅ Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Conductor (diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Admin (diseño provisional, requiere conexión): lista con filtros, detalle con quién registró y corrigió cada planilla, foto con URL firmada, corregir o eliminar (anular) planillas, cambiar conductores y tipo, reabrir una finalizada. Falta probar el flujo del conductor en un Android real sin señal.
 4. ✅ Polilla y encomiendas + cálculo de ingreso real (sin tarifas, por decisión del dueño). Conductor (diseño provisional, sin señal): pasajeros de vía y encomiendas por trayecto, corregir y eliminar (anular) con confirmación, sin ninguna suma. Admin: polilla de cada trayecto con quién registró, "se lo quedó el conductor" resaltado, eliminar, e ingresos de la vuelta desde `reporte_vueltas`. Probado contra la base en una transacción revertida: la vista y `liquidar()` coinciden. Falta probar la pantalla del conductor con su cuenta real.
 5. ✅ Gastos fijos (configuración) y variables (ACPM, ligas, extras, arreglos) + liquidación y cuadre, solo para admin. Conductor (diseño provisional, sin señal): sección "Gastos" con botones por tipo, foto del recibo opcional, corregir y eliminar con confirmación, sin ninguna suma. Admin: `/admin/configuracion/gastos-fijos` (vigentes, cambiar/agregar/quitar con fecha, historial), detalle de la vuelta con liquidación (ganancia verde / pérdida roja), cuadre de caja, gastos fijos (ajustables por vuelta) y variables (eliminar con motivo), cerrar con confirmación del cuadre, reabrir cerrada con motivo, y liquidación en la lista. Probado contra la base en una transacción revertida: la vista y `liquidar()`/`diferenciaCuadre()` coinciden. Migración `20261012213649_cierre_vuelta`.
-6. Repuestos con foto.
+6. ✅ Repuestos con foto. Conductor (diseño provisional, sin señal): pestaña "Repuestos" con historial compartido de la buseta (búsqueda y filtro por categoría), "último cambio por categoría" (hace N días), registrar con categoría, foto, kilometraje, costo, taller, notas y "se cambió en ruta" (enlaza la vuelta en curso); corrige y elimina (anula con confirmación y motivo) solo los suyos. Admin: `/admin/repuestos` (historial filtrable por categoría, mes y texto, foto con URL firmada, quién registró, "revisar hora", registrar, corregir, eliminar) y `/admin/configuracion/categorias` (agregar, activar o desactivar; no se borran). El gasto "Arreglo en ruta" remite a Repuestos. Sin migraciones: la base ya tenía tablas y permisos. Falta probarlo con sesión real (la base estaba pausada al terminar).
 7. Programación mensual (digitada) + regresos pendientes + salidas adicionales. La lógica pura ya está en `lib/dominio/programacion`. Falta en la base: hoy `marcar_salida_realizada()` solo marca la salida de la ida, porque el enlace con la programación está en `vueltas`. Hay que enlazar `trayectos` con `programacion_salidas` para que el regreso también quede `realizada`.
 8. Pagos y vencimientos con recordatorio por correo.
 9. Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor).

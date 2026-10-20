@@ -3,7 +3,7 @@
 // las del conductor y las de la base.
 
 import { z } from "zod";
-import { esquemaPlanilla } from "./registros";
+import { esquemaPlanilla, esquemaRepuesto } from "./registros";
 
 const mes = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mes inválido");
 const estadoVuelta = z.enum(["en_curso", "finalizada", "cerrada"]);
@@ -102,3 +102,32 @@ export type GastoFijoConfigEntrada = z.infer<typeof esquemaGastoFijoConfig>;
 export type AjusteGastoFijo = z.infer<typeof esquemaAjusteGastoFijo>;
 export type CierreVuelta = z.infer<typeof esquemaCierreVuelta>;
 export type ReabrirCerrada = z.infer<typeof esquemaReabrirCerrada>;
+
+/** Filtros del historial de repuestos (searchParams). Un valor inválido se ignora. */
+export const esquemaFiltrosRepuestos = z.object({
+  categoria: z.coerce.number().int().positive().optional().catch(undefined),
+  mes: mes.optional().catch(undefined),
+  texto: z.string().trim().max(60).optional().catch(undefined),
+  anulados: z
+    .enum(["1"])
+    .optional()
+    .catch(undefined)
+    .transform((v) => v === "1"),
+});
+export type FiltrosRepuestos = Partial<z.infer<typeof esquemaFiltrosRepuestos>>;
+
+/**
+ * Repuesto registrado o corregido desde el panel. El id y ocurrido_en los pone
+ * el servidor al crear; al corregir se conservan los guardados.
+ */
+export const esquemaRepuestoAdmin = esquemaRepuesto
+  .omit({ id: true, ocurrido_en: true })
+  .extend({ id: z.uuid().optional() })
+  .strict();
+export type RepuestoAdminEntrada = z.infer<typeof esquemaRepuestoAdmin>;
+
+/** Categoría de repuestos (el admin agrega o desactiva; no se borran). */
+export const esquemaCategoria = z
+  .object({ nombre: z.string().trim().min(1, "Escribe el nombre").max(60) })
+  .strict();
+export const esquemaEstadoCategoria = z.object({ id: z.number().int().positive(), activa: z.boolean() }).strict();

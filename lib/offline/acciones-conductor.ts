@@ -149,6 +149,45 @@ export async function guardarGasto(
   return id;
 }
 
+/** Lo que el conductor digita al registrar o corregir un repuesto. */
+export type DatosRepuesto = {
+  id?: string;
+  buseta_id: string;
+  categoria_id: number;
+  nombre: string;
+  foto_path?: string | null;
+  costo?: number | null;
+  kilometraje?: number | null;
+  taller?: string | null;
+  notas?: string | null;
+  /** Se cambió en ruta durante esta vuelta (opcional). */
+  vuelta_id?: string | null;
+};
+
+/**
+ * Crea o corrige un repuesto. Funciona sin señal. Quién lo registró lo pone la
+ * base; en el celular se marca para poder corregirlo antes de que sincronice.
+ */
+export async function guardarRepuesto(db: BaseLocal, uid: string, datos: DatosRepuesto): Promise<string> {
+  const id = datos.id ?? crypto.randomUUID();
+  const previo = await db.registros.get(id);
+  await guardar(
+    db,
+    "repuestos",
+    {
+      ...datos,
+      id,
+      // Corregir conserva cuándo se cambió; solo un registro nuevo toma la hora actual.
+      ocurrido_en: typeof previo?.datos.ocurrido_en === "string" ? previo.datos.ocurrido_en : ahora(),
+      nombre: datos.nombre.trim(),
+      taller: datos.taller?.trim() || null,
+      notas: datos.notas?.trim() || null,
+    },
+    previo ? {} : { registrado_por: uid, estado: "activo" },
+  );
+  return id;
+}
+
 /**
  * La buseta se varó: el trayecto terminó en una terminal antes de la final y la
  * vuelta pasa a tipo varada (todo queda en $0).
