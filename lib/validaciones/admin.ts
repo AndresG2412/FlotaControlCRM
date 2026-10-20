@@ -57,3 +57,48 @@ export const esquemaIdVuelta = z.object({ id: z.uuid() }).strict();
 
 export type CorreccionPlanilla = z.infer<typeof esquemaCorreccionPlanilla>;
 export type DatosVuelta = z.infer<typeof esquemaDatosVuelta>;
+
+const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida").refine((f) => !Number.isNaN(Date.parse(`${f}T00:00:00Z`)), "Fecha inválida");
+
+/** Una fila de la configuración de gastos fijos (valor 0 = quitar el concepto desde esa fecha). */
+export const esquemaGastoFijoConfig = z
+  .object({
+    concepto: z.string().trim().min(1, "Escribe el concepto").max(80, "Máximo 80 caracteres"),
+    valor: z.number().int("Sin decimales").min(0, "No puede ser negativo").max(10_000_000, "Máximo $10.000.000"),
+    se_paga_en_ruta: z.boolean(),
+    vigente_desde: fecha,
+  })
+  .strict();
+
+/** Ajuste del valor de un gasto fijo en una vuelta concreta. */
+export const esquemaAjusteGastoFijo = z
+  .object({
+    id: z.uuid(),
+    valor: z.number().int("Sin decimales").min(0, "No puede ser negativo").max(10_000_000, "Máximo $10.000.000"),
+  })
+  .strict();
+
+/** Cierre de la vuelta: efectivo que entregó el conductor (lo digita el admin). */
+export const esquemaCierreVuelta = z
+  .object({
+    id: z.uuid(),
+    efectivo_entregado: z
+      .number()
+      .int("Sin decimales")
+      .min(0, "No puede ser negativo")
+      .max(50_000_000, "Máximo $50.000.000"),
+    notas: z.string().trim().max(1000, "Máximo 1.000 caracteres").optional(),
+  })
+  .strict();
+
+export const esquemaReabrirCerrada = z
+  .object({
+    id: z.uuid(),
+    motivo: z.string().trim().min(3, "Di por qué se reabre").max(300, "Máximo 300 caracteres"),
+  })
+  .strict();
+
+export type GastoFijoConfigEntrada = z.infer<typeof esquemaGastoFijoConfig>;
+export type AjusteGastoFijo = z.infer<typeof esquemaAjusteGastoFijo>;
+export type CierreVuelta = z.infer<typeof esquemaCierreVuelta>;
+export type ReabrirCerrada = z.infer<typeof esquemaReabrirCerrada>;

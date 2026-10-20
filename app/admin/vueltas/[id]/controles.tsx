@@ -3,14 +3,19 @@
 import { useState, useTransition } from "react";
 import type { Persona, PlanillaDetalle } from "@/lib/admin/vueltas";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
+import { diferenciaCuadre } from "@/lib/dominio/liquidacion";
 import type { TipoVuelta } from "@/lib/dominio/vuelta";
 import {
   actualizarVuelta,
+  ajustarGastoFijo,
   anularEncomienda,
+  anularGasto,
+  cerrarVuelta,
   anularPasajero,
   anularPlanilla,
   corregirPlanilla,
   reabrirVuelta,
+  reabrirVueltaCerrada,
   type Resultado,
 } from "../acciones";
 
@@ -288,6 +293,178 @@ export function EliminarDePolilla({ tipo, id }: { tipo: "pasajero" | "encomienda
         <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
         <button type="submit" className={botonPeligro} disabled={pendiente || !motivo.trim()}>
           {pendiente ? "Eliminando…" : "Sí, eliminar"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Ajusta el valor de un gasto fijo en esta vuelta. */
+export function AjustarGastoFijo({ id, concepto, valor }: { id: string; concepto: string; valor: number }) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState(String(valor));
+  const [aviso, setAviso] = useState<string | null>(null);
+  const { pendiente, error, ejecutar } = useAccion();
+
+  if (!abierto) {
+    return <button type="button" className="text-sm text-marca underline" onClick={() => setAbierto(true)}>Ajustar</button>;
+  }
+
+  function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    const monto = leerPesos(texto);
+    if (monto === null) return setAviso("Escribe el valor sin decimales (0 si no aplicó)");
+    setAviso(null);
+    ejecutar(() => ajustarGastoFijo({ id, valor: monto }), () => setAbierto(false));
+  }
+
+  return (
+    <form onSubmit={guardar} className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+      <label className="flex flex-col gap-1 text-sm">
+        {concepto} en esta vuelta
+        <input className={campo} inputMode="numeric" value={texto} onChange={(e) => setTexto(e.target.value)} />
+      </label>
+      <p className="text-xs text-aviso">
+        Si luego cambias el tipo o la fecha de la vuelta, los gastos fijos se recargan desde la configuración y este ajuste se pierde.
+      </p>
+      <MensajeError mensaje={aviso ?? error} />
+      <div className="flex gap-2">
+        <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
+        <button type="submit" className={boton} disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</button>
+      </div>
+    </form>
+  );
+}
+
+/** Eliminar (anular con motivo) un gasto variable. */
+export function EliminarGasto({ id }: { id: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const { pendiente, error, ejecutar } = useAccion();
+
+  if (!abierto) {
+    return <button type="button" className={botonPeligro} onClick={() => setAbierto(true)}>Eliminar</button>;
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        ejecutar(() => anularGasto({ id, motivo_anulacion: motivo.trim() }), () => setAbierto(false));
+      }}
+      className="mt-1 flex flex-col gap-2 rounded-xl border border-perdida p-3"
+    >
+      <p className="text-sm font-medium">¿Seguro que quieres eliminar este gasto?</p>
+      <p className="text-xs text-texto-suave">No se borra: queda anulado con el motivo y deja de restar en la vuelta.</p>
+      <label className="flex flex-col gap-1 text-sm">
+        Motivo
+        <input className={campo} value={motivo} maxLength={300} required onChange={(e) => setMotivo(e.target.value)} placeholder="Repetido, error de monto…" />
+      </label>
+      <MensajeError mensaje={error} />
+      <div className="flex gap-2">
+        <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
+        <button type="submit" className={botonPeligro} disabled={pendiente || !motivo.trim()}>
+          {pendiente ? "Eliminando…" : "Sí, eliminar"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Cierra la vuelta: muestra el efectivo esperado y la diferencia antes de confirmar. */
+export function CerrarVuelta({ id, efectivoEsperado }: { id: string; efectivoEsperado: number }) {
+  const [entregado, setEntregado] = useState("");
+  const [notas, setNotas] = useState("");
+  const [confirmando, setConfirmando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const { pendiente, error, ejecutar } = useAccion();
+  const monto = leerPesos(entregado);
+  const diferencia = monto === null ? null : diferenciaCuadre(monto, efectivoEsperado);
+
+  function revisar(e: React.FormEvent) {
+    e.preventDefault();
+    if (monto === null) return setAviso("Escribe el efectivo que entregó el conductor, sin decimales");
+    setAviso(null);
+    setConfirmando(true);
+  }
+
+  if (confirmando && monto !== null && diferencia !== null) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+        <p className="text-sm font-medium">¿Cerrar la vuelta? Después queda solo de lectura.</p>
+        <dl className="monto flex flex-col gap-1 text-sm">
+          <div className="flex justify-between"><dt className="text-texto-suave">Efectivo esperado</dt><dd>{formatearPesos(efectivoEsperado)}</dd></div>
+          <div className="flex justify-between"><dt className="text-texto-suave">Efectivo entregado</dt><dd>{formatearPesos(monto)}</dd></div>
+          <div className="flex justify-between font-semibold">
+            <dt>Diferencia</dt>
+            <dd className={diferencia < 0 ? "text-perdida" : diferencia > 0 ? "text-aviso" : "text-ganancia"}>
+              {diferencia < 0 ? `Faltan ${formatearPesos(-diferencia)}` : diferencia > 0 ? `Sobran ${formatearPesos(diferencia)}` : "Cuadra"}
+            </dd>
+          </div>
+        </dl>
+        <MensajeError mensaje={error} />
+        <div className="flex gap-2">
+          <button type="button" className={botonSecundario} onClick={() => setConfirmando(false)}>Volver</button>
+          <button
+            type="button"
+            className={boton}
+            disabled={pendiente}
+            onClick={() => ejecutar(() => cerrarVuelta({ id, efectivo_entregado: monto, notas: notas.trim() || undefined }))}
+          >
+            {pendiente ? "Cerrando…" : "Sí, cerrar vuelta"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={revisar} className="flex flex-col gap-2 rounded-xl border border-borde p-3">
+      <h3 className="font-semibold">Cerrar vuelta</h3>
+      <label className="flex flex-col gap-1 text-sm">
+        Efectivo que entregó el conductor
+        <input className={campo} inputMode="numeric" value={entregado} onChange={(e) => setEntregado(e.target.value)} placeholder="1.200.000" />
+        {monto !== null && <span className="monto text-xs text-texto-suave">{formatearPesos(monto)}</span>}
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Notas (opcional)
+        <input className={campo} value={notas} maxLength={1000} onChange={(e) => setNotas(e.target.value)} />
+      </label>
+      <MensajeError mensaje={aviso} />
+      <button type="submit" className={`${boton} w-fit`}>Revisar cuadre</button>
+    </form>
+  );
+}
+
+/** Reabrir una vuelta cerrada: pide motivo; el cuadre anterior queda en el historial. */
+export function ReabrirCerrada({ id }: { id: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const { pendiente, error, ejecutar } = useAccion();
+
+  if (!abierto) {
+    return <button type="button" className={`${botonSecundario} w-fit`} onClick={() => setAbierto(true)}>Reabrir vuelta cerrada</button>;
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        ejecutar(() => reabrirVueltaCerrada({ id, motivo: motivo.trim() }), () => setAbierto(false));
+      }}
+      className="flex flex-col gap-2 rounded-xl border border-perdida p-3"
+    >
+      <p className="text-sm font-medium">¿Seguro que quieres reabrir esta vuelta cerrada?</p>
+      <p className="text-xs text-texto-suave">Queda finalizada y el cuadre actual se guarda en el historial; habrá que cerrarla de nuevo.</p>
+      <label className="flex flex-col gap-1 text-sm">
+        Motivo
+        <input className={campo} value={motivo} minLength={3} maxLength={300} required onChange={(e) => setMotivo(e.target.value)} placeholder="Error en un gasto…" />
+      </label>
+      <MensajeError mensaje={error} />
+      <div className="flex gap-2">
+        <button type="button" className={botonSecundario} onClick={() => setAbierto(false)}>Cancelar</button>
+        <button type="submit" className={botonPeligro} disabled={pendiente || motivo.trim().length < 3}>
+          {pendiente ? "Reabriendo…" : "Sí, reabrir"}
         </button>
       </div>
     </form>

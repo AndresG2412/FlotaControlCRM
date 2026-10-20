@@ -92,4 +92,38 @@ describe("liquidación", () => {
     });
     expect(liquidar({ ...datos, tipo: "varada" }).ingresoReal).toBe(0);
   });
+
+  it("coincide con reporte_vueltas en la base (prueba del paso 5, transacción revertida)", () => {
+    // Misma vuelta que se creó en Supabase (conductor registra, admin cierra) y que
+    // la vista resolvió así: planillas 2.100.000 · polilla 25.000 · encomiendas 15.000 ·
+    // ingreso real 2.140.000 · se quedó el conductor 20.000 · fijos 845.000 ·
+    // variables 570.000 (2 ACPM + 1 liga) · mínimos 1.415.000 · liquidación 725.000 ·
+    // efectivo esperado 725.000 · cerrada con 720.000 → diferencia −5.000.
+    const datos: DatosVuelta = {
+      tipo: "completa",
+      netosPlanillas: [900000, 700000, 500000],
+      pasajerosPolilla: [
+        { montoCobrado: 80000, montoFacturado: 55000, destinoSobrante: "polilla" },
+        { montoCobrado: 20000, montoFacturado: 0, destinoSobrante: "conductor" },
+      ],
+      encomiendas: [15000],
+      gastosFijos: fijos,
+      gastosVariables: [300000, 250000, 20000],
+    };
+    const r = liquidar(datos);
+    expect(r).toMatchObject({
+      ingresoReal: 2140000,
+      quedoConductor: 20000,
+      gastosFijos: 845000,
+      gastosVariables: 570000,
+      gastosMinimos: 1415000,
+      liquidacion: 725000,
+      efectivoEsperado: 725000,
+    });
+    expect(diferenciaCuadre(720000, r.efectivoEsperado)).toBe(-5000);
+
+    // Ajustar un fijo en la vuelta (sin lavadas, −50.000) sube liquidación y efectivo esperado.
+    const sinLavadas = liquidar({ ...datos, gastosFijos: fijos.filter((g) => g.valor !== 50000) });
+    expect(sinLavadas).toMatchObject({ liquidacion: 775000, efectivoEsperado: 775000 });
+  });
 });

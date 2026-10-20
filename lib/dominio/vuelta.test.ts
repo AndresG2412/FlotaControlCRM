@@ -51,9 +51,9 @@ describe("vuelta", () => {
     expect(trayectosFaltantes("varada", [])).toEqual(["ida"]);
   });
 
-  it("el admin edita hasta el cierre y solo reabre una finalizada", () => {
-    expect(accionesAdmin("en_curso")).toEqual({ editar: true, reabrir: false });
-    expect(accionesAdmin("finalizada")).toEqual({ editar: true, reabrir: true });
-    expect(accionesAdmin("cerrada")).toEqual({ editar: false, reabrir: false });
+  it("el admin edita hasta el cierre, cierra solo una finalizada y reabre una cerrada con motivo", () => {
+    expect(accionesAdmin("en_curso")).toEqual({ editar: true, reabrir: false, cerrar: false, reabrirCerrada: false });
+    expect(accionesAdmin("finalizada")).toEqual({ editar: true, reabrir: true, cerrar: true, reabrirCerrada: false });
+    expect(accionesAdmin("cerrada")).toEqual({ editar: false, reabrir: false, cerrar: false, reabrirCerrada: true });
   });
 });

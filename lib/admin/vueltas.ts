@@ -18,7 +18,7 @@ import type { FiltrosVueltas } from "@/lib/validaciones/admin";
 // Lectura de vueltas para el panel del admin. Usa la sesión del admin (la RLS
 // aplica) y cada función exportada verifica el rol por su cuenta (AUTZ-6).
 // Los totales de ingreso salen solo de la vista reporte_vueltas (nunca se
-// recalculan aquí). Gastos, liquidación y cuadre son del paso 5.
+// recalculan aquí), igual que gastos, liquidación y cuadre.
 
 /** Las URLs firmadas de fotos vencen pronto; recargar la página genera otras. */
 const SEGUNDOS_URL_FOTO = 10 * 60;
@@ -37,6 +37,8 @@ export type VueltaEnLista = {
   trayectos: number;
   faltan: Sentido[];
   planillas: ConteoPlanillas;
+  /** Ganancia (+) o pérdida (−) según reporte_vueltas; null si aún está en curso o no se pudo leer. */
+  liquidacion: number | null;
 };
 
 export type PlanillaDetalle = {
@@ -92,6 +94,51 @@ export type EncomiendaDetalle = Autoria & {
   motivo_anulacion: string | null;
 };
 
+export type GastoFijoVuelta = {
+  id: string;
+  concepto: string;
+  valor: number;
+  sePagaEnRuta: boolean;
+  actualizado_en: string | null;
+  actualizadoPor: string | null;
+};
+
+export type GastoVariableDetalle = Autoria & {
+  id: string;
+  tipo: "acpm" | "liga" | "extra" | "arreglo";
+  descripcion: string | null;
+  monto: number;
+  terminal: CodigoTerminal | null;
+  galones: number | null;
+  lugar: string | null;
+  fotoUrl: string | null;
+  estado: "activo" | "anulado";
+  motivo_anulacion: string | null;
+};
+
+/** Dinero de la vuelta leído de reporte_vueltas (nunca recalculado aquí). */
+export type ResumenDinero = {
+  ingresoReal: number;
+  gastosFijos: number;
+  gastosVariables: number;
+  gastosMinimos: number;
+  /** Ganancia (+) o pérdida (−). */
+  liquidacion: number;
+  efectivoEsperado: number;
+  efectivoEntregado: number | null;
+  diferenciaCuadre: number | null;
+  cerradoEn: string | null;
+};
+
+export type CierreReemplazado = {
+  efectivoEntregado: number;
+  notas: string | null;
+  cerradoEn: string | null;
+  reabiertoEn: string;
+  reabiertoPor: string;
+  motivo: string;
+};
+
 /** Ingresos de la vuelta según reporte_vueltas (solo admin). */
 export type IngresosVuelta = {
   planillas: number;
@@ -134,6 +181,10 @@ export type VueltaDetalle = {
   regreso: TrayectoDetalle | null;
   faltan: Sentido[];
   ingresos: IngresosVuelta | null;
+  dinero: ResumenDinero | null;
+  gastosFijos: GastoFijoVuelta[];
+  gastosVariables: GastoVariableDetalle[];
+  cierresReemplazados: CierreReemplazado[];
 };
 
 type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>;
@@ -171,8 +222,13 @@ export async function listarVueltas(filtros: FiltrosVueltas = {}): Promise<Vuelt
   if (filtros.estado) consulta = consulta.eq("estado", filtros.estado);
   if (filtros.tipo) consulta = consulta.eq("tipo", filtros.tipo);
 
-  const [{ data, error }, mapa] = await Promise.all([consulta, nombres(supabase)]);
+  const [{ data, error }, mapa, liquidaciones] = await Promise.all([
+    consulta,
+    nombres(supabase),
+    supabase.from("reporte_vueltas").select("vuelta_id, liquidacion"),
+  ]);
   if (error) throw new Error("No se pudieron leer las vueltas");
+  const liquidacionDe = new Map((liquidaciones.data ?? []).map((r) => [r.vuelta_id, r.liquidacion]));
 
   return data.flatMap((v) => {
     if (!esEstadoVuelta(v.estado) || !esTipoVuelta(v.tipo)) return [];
@@ -200,6 +256,8 @@ export async function listarVueltas(filtros: FiltrosVueltas = {}): Promise<Vuelt
         trayectos: trayectos.length,
         faltan: trayectosFaltantes(v.tipo, trayectos.map((t) => t.sentido)),
         planillas: resumenPlanillas(trayectos, planillas),
+        // Una vuelta en curso todavía no se liquida.
+        liquidacion: v.estado === "en_curso" ? null : (liquidacionDe.get(v.id) ?? null),
       },
     ];
   });
@@ -241,13 +299,35 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
     nombres(supabase),
   ]);
   if (error) throw new Error("No se pudo leer la vuelta");
-  const ingresos = await ingresosDeVuelta(supabase, id);
+  const [ingresos, dinero, fijos, variables, reemplazados] = await Promise.all([
+    ingresosDeVuelta(supabase, id),
+    resumenDeVuelta(supabase, id),
+    supabase
+      .from("vuelta_gastos_fijos")
+      .select("id, concepto, valor, se_paga_en_ruta, actualizado_en, actualizado_por")
+      .eq("vuelta_id", id)
+      .order("concepto"),
+    supabase
+      .from("gastos_variables")
+      .select(
+        `id, tipo, descripcion, monto, terminal, galones, lugar, foto_path, estado, motivo_anulacion,
+         ocurrido_en, sincronizado_en, actualizado_en, registrado_por, actualizado_por`,
+      )
+      .eq("vuelta_id", id)
+      .order("ocurrido_en"),
+    supabase
+      .from("vuelta_cierres_reemplazados")
+      .select("efectivo_entregado, notas, cerrado_en, reabierto_en, reabierto_por, motivo")
+      .eq("vuelta_id", id)
+      .order("reabierto_en", { ascending: false }),
+  ]);
+  if (fijos.error || variables.error || reemplazados.error) throw new Error("No se pudieron leer los gastos");
   if (!v || !esEstadoVuelta(v.estado) || !esTipoVuelta(v.tipo)) return null;
 
-  const fotos = await urlsDeFotos(
-    supabase,
-    v.trayectos.flatMap((t) => t.planillas.flatMap((p) => (p.foto_path ? [p.foto_path] : []))),
-  );
+  const fotos = await urlsDeFotos(supabase, [
+    ...v.trayectos.flatMap((t) => t.planillas.flatMap((p) => (p.foto_path ? [p.foto_path] : []))),
+    ...variables.data.flatMap((g) => (g.foto_path ? [g.foto_path] : [])),
+  ]);
 
   const trayectos = v.trayectos.flatMap((t): TrayectoDetalle[] => {
     if (!esSentido(t.sentido)) return [];
@@ -367,6 +447,77 @@ export async function detalleVuelta(id: string): Promise<VueltaDetalle | null> {
     regreso: trayectos.find((t) => t.sentido === "regreso") ?? null,
     faltan: trayectosFaltantes(v.tipo, trayectos.map((t) => t.sentido)),
     ingresos,
+    dinero,
+    gastosFijos: fijos.data.map((f) => ({
+      id: f.id,
+      concepto: f.concepto,
+      valor: f.valor,
+      sePagaEnRuta: f.se_paga_en_ruta,
+      actualizado_en: f.actualizado_en,
+      actualizadoPor: nombreDe(mapa, f.actualizado_por),
+    })),
+    gastosVariables: variables.data.flatMap((g): GastoVariableDetalle[] =>
+      esTipoGasto(g.tipo)
+        ? [
+            {
+              id: g.id,
+              tipo: g.tipo,
+              descripcion: g.descripcion,
+              monto: g.monto,
+              terminal: esTerminal(g.terminal) ? g.terminal : null,
+              galones: g.galones,
+              lugar: g.lugar,
+              fotoUrl: g.foto_path ? (fotos.get(g.foto_path) ?? null) : null,
+              estado: g.estado === "anulado" ? "anulado" : "activo",
+              motivo_anulacion: g.motivo_anulacion,
+              ocurrido_en: g.ocurrido_en,
+              sincronizado_en: g.sincronizado_en,
+              actualizado_en: g.actualizado_en,
+              registradoPor: nombreDe(mapa, g.registrado_por) ?? "Usuario desconocido",
+              actualizadoPor: nombreDe(mapa, g.actualizado_por),
+              horaSospechosa: horaSospechosa(new Date(g.ocurrido_en), new Date(g.sincronizado_en)),
+            },
+          ]
+        : [],
+    ),
+    cierresReemplazados: reemplazados.data.map((r) => ({
+      efectivoEntregado: r.efectivo_entregado,
+      notas: r.notas,
+      cerradoEn: r.cerrado_en,
+      reabiertoEn: r.reabierto_en,
+      reabiertoPor: nombreDe(mapa, r.reabierto_por) ?? "Usuario desconocido",
+      motivo: r.motivo,
+    })),
+  };
+}
+
+const esTipoGasto = (t: string): t is GastoVariableDetalle["tipo"] =>
+  t === "acpm" || t === "liga" || t === "extra" || t === "arreglo";
+
+/**
+ * Liquidación y cuadre desde reporte_vueltas: única fuente de estos números. La
+ * vista devuelve 0 filas a quien no sea admin y todo en 0 para una varada.
+ */
+async function resumenDeVuelta(supabase: Cliente, id: string): Promise<ResumenDinero | null> {
+  const { data, error } = await supabase
+    .from("reporte_vueltas")
+    .select(
+      `ingreso_real, gastos_fijos, gastos_variables, gastos_minimos, liquidacion, efectivo_esperado,
+       efectivo_entregado, diferencia_cuadre, cerrado_en`,
+    )
+    .eq("vuelta_id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    ingresoReal: data.ingreso_real ?? 0,
+    gastosFijos: data.gastos_fijos ?? 0,
+    gastosVariables: data.gastos_variables ?? 0,
+    gastosMinimos: data.gastos_minimos ?? 0,
+    liquidacion: data.liquidacion ?? 0,
+    efectivoEsperado: data.efectivo_esperado ?? 0,
+    efectivoEntregado: data.efectivo_entregado,
+    diferenciaCuadre: data.diferencia_cuadre,
+    cerradoEn: data.cerrado_en,
   };
 }
 

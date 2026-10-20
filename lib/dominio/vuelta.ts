@@ -65,11 +65,22 @@ export function esTipoVuelta(valor: string): valor is TipoVuelta {
 }
 
 /**
- * Qué puede hacer el admin con una vuelta antes del cierre (paso 5).
- * Cerrada = solo lectura; solo una finalizada se puede reabrir.
+ * Qué puede hacer el admin con una vuelta.
+ * - Cerrada = solo lectura; solo se cierra una finalizada (una varada también se finaliza).
+ * - Una finalizada se puede reabrir (vuelve a en_curso); una cerrada, con motivo (vuelve a finalizada).
  */
-export function accionesAdmin(estado: EstadoVuelta): { editar: boolean; reabrir: boolean } {
-  return { editar: estado !== "cerrada", reabrir: estado === "finalizada" };
+export function accionesAdmin(estado: EstadoVuelta): {
+  editar: boolean;
+  reabrir: boolean;
+  cerrar: boolean;
+  reabrirCerrada: boolean;
+} {
+  return {
+    editar: estado !== "cerrada",
+    reabrir: estado === "finalizada",
+    cerrar: estado === "finalizada",
+    reabrirCerrada: estado === "cerrada",
+  };
 }
 
 /** Trayectos que le faltan a una vuelta completa. Una varada puede quedar con uno solo. */

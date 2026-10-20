@@ -63,9 +63,27 @@ export type EncomiendaLocal = {
   monto: number;
 };
 
+export type TipoGasto = "acpm" | "liga" | "extra" | "arreglo";
+
+export type GastoLocal = {
+  id: string;
+  ocurrido_en?: string;
+  vuelta_id: string;
+  trayecto_id?: string | null;
+  tipo: TipoGasto;
+  descripcion?: string | null;
+  monto: number;
+  terminal?: CodigoTerminal | null;
+  galones?: number | null;
+  lugar?: string | null;
+  foto_path?: string | null;
+};
+
 /** Un pasajero con su sobrante (registro individual: se puede mostrar al conductor). */
 export type PasajeroVista = PasajeroLocal & { sobrante: number; sinEnviar: boolean };
 export type EncomiendaVista = EncomiendaLocal & { sinEnviar: boolean };
+/** Un gasto suelto. Nunca se suman en el celular. */
+export type GastoVista = GastoLocal & { sinEnviar: boolean };
 
 export type TerminalVista = {
   codigo: CodigoTerminal;
@@ -92,6 +110,8 @@ export type VistaVuelta = {
   puesto: "florencia" | "pitalito" | null;
   ida: TrayectoVista | null;
   regreso: TrayectoVista | null;
+  /** Gastos variables de la vuelta, uno por uno y por hora. Nunca se suman en el celular. */
+  gastos: GastoVista[];
   /** Terminales sin registrar en los trayectos abiertos: avisar antes de finalizar. */
   terminalesPendientes: number;
   sinEnviar: boolean;
@@ -154,6 +174,11 @@ export function armarVista(
     };
   };
 
+  const gastos = deTabla<GastoLocal>(registros, "gastos_variables")
+    .filter((g) => g.vuelta_id === vuelta.id)
+    .sort(porHora)
+    .map((g): GastoVista => ({ ...g, sinEnviar: sinEnviar.has(g.id) }));
+
   const ida = armarTrayecto("ida");
   const regreso = armarTrayecto("regreso");
   const puesto =
@@ -165,10 +190,12 @@ export function armarVista(
     puesto,
     ida,
     regreso,
+    gastos,
     terminalesPendientes: [ida, regreso].reduce(
       (n, t) => n + (t?.terminales.filter((x) => x.estado === "pendiente").length ?? 0),
       0,
     ),
-    sinEnviar: sinEnviar.has(vuelta.id) || Boolean(ida?.sinEnviar || regreso?.sinEnviar),
+    sinEnviar:
+      sinEnviar.has(vuelta.id) || Boolean(ida?.sinEnviar || regreso?.sinEnviar) || gastos.some((g) => g.sinEnviar),
   };
 }

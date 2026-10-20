@@ -23,6 +23,7 @@ import { useConsulta } from "@/lib/offline/use-consulta";
 import { armarVista, type TerminalVista, type TrayectoVista, type VistaVuelta } from "@/lib/offline/vista";
 import { unirseAVuelta } from "./acciones";
 import { FormularioPlanilla } from "./formulario-planilla";
+import { GastosDeLaVuelta } from "./gastos";
 import { PolillaDelTrayecto } from "./polilla";
 
 // Regla dura: aquí no se muestran sumas ni totales de dinero, solo registros sueltos.
@@ -215,6 +216,7 @@ function VueltaEnCurso({ uid, vista, conductores }: { uid: string; vista: VistaV
       </section>
       {trayectoCard("ida", ida)}
       {trayectoCard("regreso", regreso)}
+      <GastosDeLaVuelta uid={uid} vista={vista} />
       <button className={botonSecundario} onClick={finalizar}>Finalizar vuelta</button>
     </div>
   );

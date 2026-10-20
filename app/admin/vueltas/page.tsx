@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listarVueltas, type VueltaEnLista } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
+import { formatearPesos } from "@/lib/dominio/dinero";
 import { hoyEnBogota } from "@/lib/dominio/fechas";
 import { esquemaFiltrosVueltas } from "@/lib/validaciones/admin";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "./etiquetas";
@@ -101,6 +102,12 @@ function FilaVuelta({ vuelta: v }: { vuelta: VueltaEnLista }) {
           {sin_planilla > 0 && `, ${sin_planilla} sin planilla`}
           {pendiente > 0 && <span className="text-aviso">, {pendiente} por registrar</span>}
         </span>
+        {v.liquidacion !== null && v.tipo === "completa" && (
+          <span className={`monto text-sm font-semibold ${v.liquidacion >= 0 ? "text-ganancia" : "text-perdida"}`}>
+            {v.liquidacion >= 0 ? "Ganancia" : "Pérdida"} {formatearPesos(Math.abs(v.liquidacion))}
+          </span>
+        )}
+        {v.tipo === "varada" && v.estado !== "en_curso" && <span className="text-sm text-texto-suave">Varada: no se liquida</span>}
       </Link>
     </li>
   );

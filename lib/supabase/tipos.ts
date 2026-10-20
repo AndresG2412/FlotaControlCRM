@@ -994,8 +994,46 @@ export type Database = {
           },
         ]
       }
+      vuelta_cierres_reemplazados: {
+        Row: {
+          cerrado_en: string | null
+          cerrado_por: string | null
+          efectivo_entregado: number
+          id: string
+          motivo: string
+          notas: string | null
+          reabierto_en: string
+          reabierto_por: string
+          vuelta_id: string
+        }
+        Insert: {
+          cerrado_en?: string | null
+          cerrado_por?: string | null
+          efectivo_entregado: number
+          id?: string
+          motivo: string
+          notas?: string | null
+          reabierto_en?: string
+          reabierto_por: string
+          vuelta_id: string
+        }
+        Update: {
+          cerrado_en?: string | null
+          cerrado_por?: string | null
+          efectivo_entregado?: number
+          id?: string
+          motivo?: string
+          notas?: string | null
+          reabierto_en?: string
+          reabierto_por?: string
+          vuelta_id?: string
+        }
+        Relationships: []
+      }
       vuelta_gastos_fijos: {
         Row: {
+          actualizado_en: string | null
+          actualizado_por: string | null
           concepto: string
           id: string
           se_paga_en_ruta: boolean
@@ -1003,6 +1041,8 @@ export type Database = {
           vuelta_id: string
         }
         Insert: {
+          actualizado_en?: string | null
+          actualizado_por?: string | null
           concepto: string
           id?: string
           se_paga_en_ruta: boolean
@@ -1010,6 +1050,8 @@ export type Database = {
           vuelta_id: string
         }
         Update: {
+          actualizado_en?: string | null
+          actualizado_por?: string | null
           concepto?: string
           id?: string
           se_paga_en_ruta?: boolean
@@ -1017,6 +1059,13 @@ export type Database = {
           vuelta_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vuelta_gastos_fijos_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vuelta_gastos_fijos_vuelta_id_fkey"
             columns: ["vuelta_id"]
@@ -1184,6 +1233,10 @@ export type Database = {
           p_notas?: string
           p_vuelta: string
         }
+        Returns: undefined
+      }
+      reabrir_vuelta_cerrada: {
+        Args: { p_motivo: string; p_vuelta: string }
         Returns: undefined
       }
       registrar_salida_adicional: {

@@ -4,9 +4,13 @@ import {
   detalleVuelta,
   listarConductores,
   type EncomiendaDetalle,
+  type GastoFijoVuelta,
+  type GastoVariableDetalle,
   type IngresosVuelta,
   type PasajeroDetalle,
   type PlanillaDetalle,
+  type ResumenDinero,
+  type CierreReemplazado,
   type TrayectoDetalle,
 } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
@@ -16,12 +20,21 @@ import type { TerminalConPlanilla } from "@/lib/dominio/planillas";
 import { buscarTramo, TERMINALES } from "@/lib/dominio/ruta";
 import { accionesAdmin } from "@/lib/dominio/vuelta";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "../etiquetas";
-import { AccionesPlanilla, EditarVuelta, EliminarDePolilla, ReabrirVuelta } from "./controles";
+import {
+  AccionesPlanilla,
+  AjustarGastoFijo,
+  CerrarVuelta,
+  EditarVuelta,
+  EliminarDePolilla,
+  EliminarGasto,
+  ReabrirCerrada,
+  ReabrirVuelta,
+} from "./controles";
 
 export const metadata = { title: "Detalle de vuelta" };
 
-// Diseño provisional. Los ingresos salen de reporte_vueltas; gastos, liquidación
-// y cuadre son del paso 5.
+// Diseño provisional. Todo el dinero (ingresos, gastos, liquidación y cuadre) se lee
+// de reporte_vueltas: aquí no se recalcula.
 const tarjeta = "flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4";
 
 export default async function DetalleVuelta({ params }: PageProps<"/admin/vueltas/[id]">) {
@@ -72,9 +85,16 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
           />
         )}
         {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
+        {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
       </div>
 
       <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
+      <Liquidacion dinero={vuelta.dinero} varada={vuelta.tipo === "varada"} puedeCerrar={permitido.cerrar} id={vuelta.id} />
+      {vuelta.tipo === "completa" && (
+        <GastosFijos fijos={vuelta.gastosFijos} editable={permitido.editar} />
+      )}
+      <GastosVariables gastos={vuelta.gastosVariables} editable={permitido.editar} varada={vuelta.tipo === "varada"} />
+      <CierresReemplazados cierres={vuelta.cierresReemplazados} />
 
       {vuelta.faltan.map((sentido) => (
         <p key={sentido} className={`${tarjeta} text-aviso`}>
@@ -214,7 +234,6 @@ function Ingresos({ ingresos, varada }: { ingresos: IngresosVuelta | null; varad
         Se quedó el conductor: <strong>{formatearPesos(ingresos.quedoConductor)}</strong>{" "}
         <span className="text-texto-suave">(no suma al ingreso)</span>
       </p>
-      <p className="text-xs text-texto-suave">Gastos, liquidación y cuadre: próximamente.</p>
     </div>
   );
 }
@@ -327,5 +346,180 @@ function AutoriaRegistro({
       {r.horaSospechosa && <strong className="text-aviso"> · revisar hora</strong>}
       {r.actualizadoPor && r.actualizado_en && ` · Corrigió ${r.actualizadoPor} · ${formatearFechaHora(r.actualizado_en)}`}
     </span>
+  );
+}
+
+function Liquidacion({
+  dinero,
+  varada,
+  puedeCerrar,
+  id,
+}: {
+  dinero: ResumenDinero | null;
+  varada: boolean;
+  puedeCerrar: boolean;
+  id: string;
+}) {
+  if (!dinero) return null;
+  if (varada) {
+    return (
+      <div className={tarjeta}>
+        <h2 className="text-lg font-semibold">Liquidación</h2>
+        <p className="text-sm text-aviso">Varada: no se liquida. Todo queda en $0.</p>
+        {puedeCerrar && <CerrarVuelta id={id} efectivoEsperado={0} />}
+      </div>
+    );
+  }
+  const fila = (termino: string, valor: number, clase = "") => (
+    <div className="flex justify-between gap-2">
+      <dt className="text-texto-suave">{termino}</dt>
+      <dd className={`monto ${clase}`}>{formatearPesos(valor)}</dd>
+    </div>
+  );
+  const gana = dinero.liquidacion >= 0;
+  const dif = dinero.diferenciaCuadre;
+  return (
+    <div className={tarjeta}>
+      <h2 className="text-lg font-semibold">Liquidación</h2>
+      <dl className="flex flex-col gap-1 text-sm">
+        {fila("Ingreso real", dinero.ingresoReal)}
+        {fila("Gastos fijos", dinero.gastosFijos)}
+        {fila("Gastos variables (ACPM, ligas, otros)", dinero.gastosVariables)}
+        {fila("Gastos mínimos", dinero.gastosMinimos)}
+        <div className="flex justify-between gap-2 border-t border-borde pt-1 font-semibold">
+          <dt>{gana ? "Ganancia" : "Pérdida"}</dt>
+          <dd className={`monto ${gana ? "text-ganancia" : "text-perdida"}`}>{formatearPesos(Math.abs(dinero.liquidacion))}</dd>
+        </div>
+      </dl>
+
+      <h3 className="mt-2 font-semibold">Cuadre de caja</h3>
+      <dl className="flex flex-col gap-1 text-sm">
+        {fila("Efectivo esperado", dinero.efectivoEsperado)}
+        {dinero.efectivoEntregado !== null && fila("Efectivo entregado", dinero.efectivoEntregado)}
+        {dif !== null && (
+          <div className="flex justify-between gap-2 font-semibold">
+            <dt>Diferencia</dt>
+            <dd className={`monto ${dif < 0 ? "text-perdida" : dif > 0 ? "text-aviso" : "text-ganancia"}`}>
+              {dif < 0 ? `Faltan ${formatearPesos(-dif)}` : dif > 0 ? `Sobran ${formatearPesos(dif)}` : "Cuadra"}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {dinero.cerradoEn && <p className="text-xs text-texto-suave">Cerrada el {formatearFechaHora(dinero.cerradoEn)}</p>}
+      {puedeCerrar && <CerrarVuelta id={id} efectivoEsperado={dinero.efectivoEsperado} />}
+    </div>
+  );
+}
+
+function GastosFijos({ fijos, editable }: { fijos: GastoFijoVuelta[]; editable: boolean }) {
+  return (
+    <div className={tarjeta}>
+      <h2 className="text-lg font-semibold">Gastos fijos de la vuelta</h2>
+      {fijos.length === 0 ? (
+        <p className="text-sm text-texto-suave">Esta vuelta no tiene gastos fijos cargados.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {fijos.map((f) => (
+            <li key={f.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium">
+                  {f.concepto}
+                  {!f.sePagaEnRuta && <span className="text-texto-suave"> · lo paga el dueño</span>}
+                </span>
+                <span className="monto">{formatearPesos(f.valor)}</span>
+              </div>
+              {f.actualizado_en && f.actualizadoPor && (
+                <span className="text-xs text-texto-suave">
+                  Ajustado por {f.actualizadoPor} · {formatearFechaHora(f.actualizado_en)}
+                </span>
+              )}
+              {editable && <AjustarGastoFijo id={f.id} concepto={f.concepto} valor={f.valor} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const ETIQUETA_GASTO = { acpm: "ACPM", liga: "Liga", extra: "Otro gasto", arreglo: "Arreglo en ruta" } as const;
+
+function detalleGasto(g: GastoVariableDetalle): string {
+  return [
+    g.tipo === "liga" && g.terminal ? `en ${TERMINALES[g.terminal]}` : null,
+    g.galones != null ? `${g.galones} galones` : null,
+    g.lugar,
+    g.descripcion,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function GastosVariables({ gastos, editable, varada }: { gastos: GastoVariableDetalle[]; editable: boolean; varada: boolean }) {
+  const activos = gastos.filter((g) => g.estado === "activo");
+  const eliminados = gastos.filter((g) => g.estado === "anulado");
+  return (
+    <div className={tarjeta}>
+      <h2 className="text-lg font-semibold">Gastos variables</h2>
+      {varada && activos.length > 0 && <p className="text-sm text-aviso">Varada: estos gastos no cuentan, la vuelta queda en $0.</p>}
+      {activos.length === 0 && <p className="text-sm text-texto-suave">Sin gastos variables.</p>}
+      <ul className="flex flex-col gap-2">
+        {activos.map((g) => (
+          <li key={g.id} className="flex flex-col gap-1 rounded-xl border border-borde p-3">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-medium">
+                {ETIQUETA_GASTO[g.tipo]}
+                {detalleGasto(g) && <span className="font-normal text-texto-suave"> · {detalleGasto(g)}</span>}
+              </span>
+              <span className="monto">{formatearPesos(g.monto)}</span>
+            </div>
+            {g.fotoUrl && (
+              <a href={g.fotoUrl} target="_blank" rel="noopener noreferrer" className="w-fit">
+                {/* URL firmada de corta duración; next/image no aplica a URLs temporales. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.fotoUrl} alt={`Recibo de ${ETIQUETA_GASTO[g.tipo]}`} className="max-h-48 rounded-lg border border-borde" />
+              </a>
+            )}
+            <AutoriaRegistro registro={g} />
+            {editable && <EliminarGasto id={g.id} />}
+          </li>
+        ))}
+      </ul>
+      {eliminados.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-texto-suave">Eliminados ({eliminados.length})</summary>
+          <ul className="mt-2 flex flex-col gap-2">
+            {eliminados.map((g) => (
+              <li key={g.id} className="rounded-xl border border-borde p-3 opacity-80">
+                {ETIQUETA_GASTO[g.tipo]} · <span className="monto">{formatearPesos(g.monto)}</span>
+                <br />
+                <span className="text-texto-suave">Motivo: {g.motivo_anulacion}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function CierresReemplazados({ cierres }: { cierres: CierreReemplazado[] }) {
+  if (cierres.length === 0) return null;
+  return (
+    <details className={`${tarjeta} text-sm`}>
+      <summary className="cursor-pointer text-texto-suave">Cierres anteriores reemplazados ({cierres.length})</summary>
+      <ul className="mt-2 flex flex-col gap-2">
+        {cierres.map((c) => (
+          <li key={c.reabiertoEn} className="rounded-xl border border-borde p-3">
+            Entregado <span className="monto">{formatearPesos(c.efectivoEntregado)}</span>
+            {c.cerradoEn && ` · cerrada ${formatearFechaHora(c.cerradoEn)}`}
+            <br />
+            <span className="text-texto-suave">
+              Reabierta por {c.reabiertoPor} · {formatearFechaHora(c.reabiertoEn)} · Motivo: {c.motivo}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

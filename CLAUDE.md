@@ -224,6 +224,13 @@ Decisiones ya tomadas con Next 16.4:
 - Sesión en el servidor: siempre `supabase.auth.getClaims()` (valida el JWT), nunca `getSession()`.
 
 
+Decisiones del paso 5 (gastos, liquidación y cuadre):
+- Todo el dinero del detalle sale de `reporte_vueltas`; la UI solo calcula la vista previa de la diferencia al cerrar (con `diferenciaCuadre`). `vuelta_gastos_fijos` guarda quién ajustó un valor (`actualizado_por`).
+- Una vuelta `cerrada` es de solo lectura para el admin también en gastos fijos y variables (trigger `bloquear_si_vuelta_cerrada`), no solo en las acciones.
+- El conductor ve sus gastos uno por uno (tipo, monto, dónde, "sin enviar"); `VistaVuelta.gastos` nunca se suma.
+- Los galones admiten decimales (no son dinero). Solo la liga lleva terminal y solo el ACPM, galones. "Arreglo en ruta" es por ahora solo descripción; se enlazará con Repuestos en el paso 6.
+- Pendiente de probar en pantalla con sesión real: ver el resumen del paso en el cierre de la conversación.
+
 ### PWA offline-first
 
 En la vía se quedan sin señal con frecuencia, así que la captura del conductor **tiene que funcionar sin internet**. Los conductores usan **Android** (Chrome), donde la PWA instalada funciona bien offline y sincroniza sola al recuperar señal.
@@ -288,10 +295,11 @@ proxy.ts                 # refresca la sesión y protege /admin y /conductor
 app/
   (auth)/login           # login por usuario ("pedro" → pedro@flotacontrol.local)
   admin/                 # panel del dueño (exigirRol('admin') en layout y en cada page)
+    configuracion/       # índice; gastos-fijos/ = vigentes, formulario por fecha e historial (acciones.ts, formulario.tsx)
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
-      acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir
+      acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
-                         # pantalla-vuelta.tsx, formulario-planilla.tsx y polilla.tsx: diseño provisional
+                         # pantalla-vuelta.tsx, formulario-planilla.tsx, polilla.tsx y gastos.tsx: diseño provisional
   sin-conexion/          # respaldo offline del service worker
   api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
   serwist/[path]/        # sirve el service worker
@@ -299,11 +307,13 @@ app/
   manifest.ts            # manifiesto de la PWA (íconos en public/iconos)
 lib/
   admin/                 # lecturas del panel (server-only, exigirRol('admin') en cada función)
-    vueltas.ts           # listarVueltas, detalleVuelta (con URLs firmadas de fotos), listarConductores
+    vueltas.ts           # listarVueltas (con liquidación), detalleVuelta (fotos firmadas, gastos, liquidación y cuadre desde reporte_vueltas), listarConductores
+    gastos-fijos.ts      # configuración de gastos fijos
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
     vuelta.ts            # ciclo de vida: una en curso, finalizar, varada en $0, qué puede hacer el admin
+    gastos-fijos.ts      # fijosVigentes (igual que el trigger cargar_gastos_fijos), historialPorConcepto, totalFijos
     planillas.ts         # estado de cada terminal (registrada, sin planilla, pendiente); conductor y admin
   offline/               # IndexedDB (Dexie) + cola de sincronización
     operaciones.ts       # contrato celular ↔ servidor (operaciones, lote, códigos de error)
@@ -331,7 +341,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 2. ✅ Capa offline (IndexedDB + cola de sincronización). Cubierta con tests (cola, fusión de vuelta, endpoint) y probada contra la base real con dos conductores simulados (transacción revertida). Falta probarla en un Android real sin señal, con cuentas reales, cuando estén las pantallas del paso 3.
 3. ✅ Vueltas y trayectos + planillas (incluye "sin planilla" con motivo y vueltas varadas). Conductor (diseño provisional): iniciar o unirse a la vuelta, ida y regreso, planilla por terminal con foto opcional, varada y finalizar, todo sin señal. Admin (diseño provisional, requiere conexión): lista con filtros, detalle con quién registró y corrigió cada planilla, foto con URL firmada, corregir o eliminar (anular) planillas, cambiar conductores y tipo, reabrir una finalizada. Falta probar el flujo del conductor en un Android real sin señal.
 4. ✅ Polilla y encomiendas + cálculo de ingreso real (sin tarifas, por decisión del dueño). Conductor (diseño provisional, sin señal): pasajeros de vía y encomiendas por trayecto, corregir y eliminar (anular) con confirmación, sin ninguna suma. Admin: polilla de cada trayecto con quién registró, "se lo quedó el conductor" resaltado, eliminar, e ingresos de la vuelta desde `reporte_vueltas`. Probado contra la base en una transacción revertida: la vista y `liquidar()` coinciden. Falta probar la pantalla del conductor con su cuenta real.
-5. Gastos fijos (configuración) y variables (ACPM, ligas, extras) + liquidación y cuadre, solo para admin.
+5. ✅ Gastos fijos (configuración) y variables (ACPM, ligas, extras, arreglos) + liquidación y cuadre, solo para admin. Conductor (diseño provisional, sin señal): sección "Gastos" con botones por tipo, foto del recibo opcional, corregir y eliminar con confirmación, sin ninguna suma. Admin: `/admin/configuracion/gastos-fijos` (vigentes, cambiar/agregar/quitar con fecha, historial), detalle de la vuelta con liquidación (ganancia verde / pérdida roja), cuadre de caja, gastos fijos (ajustables por vuelta) y variables (eliminar con motivo), cerrar con confirmación del cuadre, reabrir cerrada con motivo, y liquidación en la lista. Probado contra la base en una transacción revertida: la vista y `liquidar()`/`diferenciaCuadre()` coinciden. Migración `20261012213649_cierre_vuelta`.
 6. Repuestos con foto.
 7. Programación mensual (digitada) + regresos pendientes + salidas adicionales. La lógica pura ya está en `lib/dominio/programacion`. Falta en la base: hoy `marcar_salida_realizada()` solo marca la salida de la ida, porque el enlace con la programación está en `vueltas`. Hay que enlazar `trayectos` con `programacion_salidas` para que el regreso también quede `realizada`.
 8. Pagos y vencimientos con recordatorio por correo.
@@ -369,6 +379,11 @@ _(ninguna por ahora)_
 - Quién crea la vuelta: cualquier conductor. Solo una en curso por buseta; hay que finalizarla para empezar otra.
 - Varadas con dinero: aunque se registre dinero, una varada queda toda en $0 (ni gastos ni ganancias).
 - Conductores: crean y finalizan vueltas; crean, editan y eliminan (anulan, con confirmación) repuestos; ven vencimientos y programación.
+- Cerrar una vuelta: solo si está **finalizada**, también en la base (`cerrar_vuelta`). Una varada se finaliza igual que una completa, así que usa el mismo botón.
+- El admin puede **reabrir una vuelta cerrada** con motivo (`reabrir_vuelta_cerrada`): queda finalizada y el cuadre anterior se guarda en `vuelta_cierres_reemplazados`.
+- Gastos fijos: todos se pagan en ruta (salen del efectivo del conductor).
+- Ajustar un gasto fijo en una vuelta concreta: **solo el admin**. El conductor no ve gastos fijos ni montos (regla de privacidad); si cambia el tipo o la fecha de la vuelta, la base recarga los fijos desde la configuración y el ajuste se pierde.
+- Varada: sigue toda en $0, incluidos los $70.000 del conductor Florencia, que por ahora no se registran (valor por defecto, no se discutió de nuevo).
 
 ---
 

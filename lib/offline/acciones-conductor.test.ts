@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   finalizarVuelta,
   guardarEncomienda,
+  guardarGasto,
   guardarPasajero,
   guardarPlanilla,
   iniciarTrayecto,
@@ -157,5 +158,55 @@ describe("vuelta del conductor (sin señal)", () => {
     await guardarPlanilla(db, { id: idaId, sentido: "ida" }, { terminal: "florencia", emitida: true, neto: 1 });
     await guardarPlanilla(db, { id: idaId, sentido: "ida" }, { terminal: "pitalito", emitida: false, motivo_sin_planilla: "Cerrada" });
     expect((await vista())!.ida!.tramoActual.id).toBe("ida-2");
+  });
+
+  it("gastos: crea ACPM, liga, otro y arreglo, uno por uno", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const idaId = await iniciarTrayecto(db, vueltaId, "ida");
+    const vuelta = { id: vueltaId };
+    await guardarGasto(db, vuelta, { tipo: "acpm", monto: 300000, galones: 25.5, lugar: "Estación Pitalito", trayecto_id: idaId });
+    await guardarGasto(db, vuelta, { tipo: "liga", monto: 20000, terminal: "popayan" });
+    await guardarGasto(db, vuelta, { tipo: "extra", monto: 15000, descripcion: "Almuerzo" });
+    await guardarGasto(db, vuelta, { tipo: "arreglo", monto: 80000, descripcion: "Llanta" });
+    const gastos = (await vista())!.gastos;
+    expect(gastos.map((g) => g.tipo).sort()).toEqual(["acpm", "arreglo", "extra", "liga"]);
+    expect(gastos.find((g) => g.tipo === "acpm")).toMatchObject({ galones: 25.5, trayecto_id: idaId, sinEnviar: true });
+    // Solo la liga lleva terminal y solo el ACPM, galones.
+    expect(gastos.find((g) => g.tipo === "liga")?.terminal).toBe("popayan");
+    expect(gastos.find((g) => g.tipo === "extra")?.terminal).toBeNull();
+  });
+
+  it("gastos: liga sin terminal, extra sin descripción y monto 0 se rechazan", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const vuelta = { id: vueltaId };
+    await expect(guardarGasto(db, vuelta, { tipo: "liga", monto: 20000 })).rejects.toThrow();
+    await expect(guardarGasto(db, vuelta, { tipo: "extra", monto: 15000 })).rejects.toThrow();
+    await expect(guardarGasto(db, vuelta, { tipo: "arreglo", monto: 15000, descripcion: "  " })).rejects.toThrow();
+    await expect(guardarGasto(db, vuelta, { tipo: "acpm", monto: 0 })).rejects.toThrow();
+    expect((await vista())!.gastos).toHaveLength(0);
+  });
+
+  it("gastos: corregir no duplica y eliminar lo anula", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    const vuelta = { id: vueltaId };
+    const id = await guardarGasto(db, vuelta, { tipo: "acpm", monto: 300000 });
+    await guardarGasto(db, vuelta, { tipo: "acpm", id, monto: 320000 });
+    expect((await vista())!.gastos).toHaveLength(1);
+    expect((await vista())!.gastos[0].monto).toBe(320000);
+    expect(await db.registros.where("tabla").equals("gastos_variables").count()).toBe(1);
+
+    await anular(db, "gastos_variables", id, "Lo registré dos veces");
+    expect((await vista())!.gastos).toHaveLength(0);
+  });
+
+  it("gastos: la vista no expone sumas ni totales de dinero", async () => {
+    const vueltaId = await iniciarVuelta(db, { uid: yo, busetaId: buseta, puesto: "florencia", companeroId: null });
+    await guardarGasto(db, { id: vueltaId }, { tipo: "acpm", monto: 300000 });
+    await guardarGasto(db, { id: vueltaId }, { tipo: "extra", monto: 15000, descripcion: "Almuerzo" });
+    const v = (await vista())!;
+    const claves = JSON.stringify(Object.keys(v)) + JSON.stringify(Object.keys(v.gastos[0]));
+    expect(claves).not.toMatch(/total|suma|gastado|fijos|liquid|cuadre/i);
+    // Ningún campo numérico de la vista es la suma de los gastos (315.000).
+    expect(JSON.stringify(v)).not.toContain("315000");
   });
 });

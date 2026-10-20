@@ -5,17 +5,23 @@ import { exigirRol } from "@/lib/auth/sesion";
 import { accionesAdmin, esEstadoVuelta } from "@/lib/dominio/vuelta";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import {
+  esquemaAjusteGastoFijo,
+  esquemaCierreVuelta,
   esquemaCorreccionPlanilla,
   esquemaDatosVuelta,
   esquemaIdVuelta,
+  esquemaReabrirCerrada,
+  type AjusteGastoFijo,
+  type CierreVuelta,
   type CorreccionPlanilla,
   type DatosVuelta,
+  type ReabrirCerrada,
 } from "@/lib/validaciones/admin";
 import { esquemaAnulacion, esquemaPlanilla } from "@/lib/validaciones/registros";
 
 // Acciones del admin sobre vueltas y planillas. Cada una verifica el rol, valida
 // con Zod y escribe con la sesión del admin (la RLS y los checks son la última
-// barrera). El cierre con cuadre (cerrar_vuelta) es del paso 5.
+// barrera). El cierre con cuadre usa el RPC cerrar_vuelta.
 
 export type Resultado = { error: string | null };
 
@@ -226,4 +232,105 @@ export async function anularPasajero(entrada: { id: string; motivo_anulacion: st
 
 export async function anularEncomienda(entrada: { id: string; motivo_anulacion: string }): Promise<Resultado> {
   return anularDePolilla("encomiendas", entrada);
+}
+
+/** "Eliminar" un gasto variable: queda anulado con su motivo. Solo si la vuelta no está cerrada. */
+export async function anularGasto(entrada: { id: string; motivo_anulacion: string }): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaAnulacion.strict().safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: actual } = await supabase
+    .from("gastos_variables")
+    .select("id, estado, vuelta_id")
+    .eq("id", datos.data.id)
+    .maybeSingle();
+  if (!actual || actual.estado !== "activo") return { error: "El gasto no existe o ya fue eliminado" };
+  const bloqueo = await vueltaEditable(supabase, actual.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const { data, error } = await supabase
+    .from("gastos_variables")
+    .update({ estado: "anulado", motivo_anulacion: datos.data.motivo_anulacion })
+    .eq("id", datos.data.id)
+    .eq("estado", "activo")
+    .select("id");
+  if (error || !data.length) return { error: "No se pudo eliminar el gasto" };
+
+  revalidar(actual.vuelta_id);
+  return { error: null };
+}
+
+/**
+ * Ajusta el valor de un gasto fijo en esta vuelta (ej. ese día no hubo lavada).
+ * Si luego cambian el tipo o la fecha de la vuelta, la base recarga los fijos desde
+ * la configuración y este ajuste se pierde.
+ */
+export async function ajustarGastoFijo(entrada: AjusteGastoFijo): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaAjusteGastoFijo.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: actual } = await supabase
+    .from("vuelta_gastos_fijos")
+    .select("id, vuelta_id")
+    .eq("id", datos.data.id)
+    .maybeSingle();
+  if (!actual) return { error: "El gasto fijo no existe" };
+  const bloqueo = await vueltaEditable(supabase, actual.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const { data, error } = await supabase
+    .from("vuelta_gastos_fijos")
+    .update({ valor: datos.data.valor })
+    .eq("id", datos.data.id)
+    .select("id");
+  if (error || !data.length) return { error: "No se pudo guardar el ajuste" };
+
+  revalidar(actual.vuelta_id);
+  return { error: null };
+}
+
+/** Cierra una vuelta finalizada con el efectivo que entregó el conductor (RPC cerrar_vuelta). */
+export async function cerrarVuelta(entrada: CierreVuelta): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaCierreVuelta.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: actual } = await supabase.from("vueltas").select("estado").eq("id", datos.data.id).maybeSingle();
+  if (!actual || !esEstadoVuelta(actual.estado)) return { error: "La vuelta no existe" };
+  if (!accionesAdmin(actual.estado).cerrar) {
+    return { error: actual.estado === "cerrada" ? "La vuelta ya está cerrada" : "Solo se puede cerrar una vuelta finalizada" };
+  }
+
+  const { error } = await supabase.rpc("cerrar_vuelta", {
+    p_vuelta: datos.data.id,
+    p_efectivo_entregado: datos.data.efectivo_entregado,
+    p_notas: datos.data.notas || undefined,
+  });
+  if (error) return { error: "No se pudo cerrar la vuelta" };
+
+  revalidar(datos.data.id);
+  return { error: null };
+}
+
+/** Reabre una vuelta cerrada (queda finalizada); el cuadre anterior se conserva en el historial. */
+export async function reabrirVueltaCerrada(entrada: ReabrirCerrada): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaReabrirCerrada.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase.rpc("reabrir_vuelta_cerrada", {
+    p_vuelta: datos.data.id,
+    p_motivo: datos.data.motivo,
+  });
+  if (error?.code === "23514") return { error: "Solo se puede reabrir una vuelta cerrada" };
+  if (error) return { error: "No se pudo reabrir la vuelta cerrada" };
+
+  revalidar(datos.data.id);
+  return { error: null };
 }

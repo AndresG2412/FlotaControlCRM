@@ -1,5 +1,5 @@
 // Trae del servidor lo que el conductor necesita tener en el celular: la vuelta
-// en curso con sus trayectos, planillas, pasajeros de vía y encomiendas, la
+// en curso con sus trayectos, planillas, pasajeros de vía, encomiendas y gastos variables, la
 // buseta y los conductores. Lectura con
 // la sesión del usuario (RLS). Nunca pisa lo que aún no se ha enviado.
 
@@ -38,6 +38,10 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
 
   const idsTrayectos = trayectos.data.map((t) => t.id);
   const vacio = { data: [], error: null };
+  const gastos = idsVueltas.length
+    ? await supabase.from("gastos_variables").select("*").in("vuelta_id", idsVueltas)
+    : vacio;
+  if (gastos.error) throw new Error("No se pudo descargar");
   const [planillas, pasajeros, encomiendas] = idsTrayectos.length
     ? await Promise.all([
         supabase.from("planillas").select("*").in("trayecto_id", idsTrayectos),
@@ -63,6 +67,7 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     ...planillas.data.map((p) => aRegistro("planillas", p)),
     ...pasajeros.data.map((p) => aRegistro("polilla_pasajeros", p)),
     ...encomiendas.data.map((e) => aRegistro("encomiendas", e)),
+    ...gastos.data.map((g) => aRegistro("gastos_variables", g)),
   ].filter((r) => !pendientes.has(r.id)); // lo local sin enviar manda
 
   await db.transaction("rw", db.registros, db.ajustes, async () => {

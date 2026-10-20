@@ -6,7 +6,7 @@ import type { CodigoTerminal, Sentido } from "@/lib/dominio/ruta";
 import { puedeIniciarVuelta } from "@/lib/dominio/vuelta";
 import { cambiarEstadoVuelta, guardar } from "./cola";
 import type { BaseLocal } from "./db";
-import type { EncomiendaLocal, PasajeroLocal, PlanillaLocal, TrayectoLocal, VueltaLocal } from "./vista";
+import type { EncomiendaLocal, GastoLocal, PasajeroLocal, PlanillaLocal, TrayectoLocal, VueltaLocal } from "./vista";
 
 const ahora = () => new Date().toISOString();
 
@@ -120,6 +120,31 @@ export async function guardarEncomienda(
     recibida_en_terminal: datos.recibida_en_terminal ?? null,
     recibida_en_tramo: datos.recibida_en_terminal ? null : (datos.recibida_en_tramo ?? null),
     descripcion: datos.descripcion?.trim() || null,
+  });
+  return id;
+}
+
+/**
+ * Crea o corrige un gasto variable de la vuelta (ACPM, liga, otro gasto, arreglo).
+ * Si hay un trayecto abierto se enlaza; la foto del recibo ya viene guardada.
+ */
+export async function guardarGasto(
+  db: BaseLocal,
+  vuelta: Pick<VueltaLocal, "id">,
+  datos: Omit<GastoLocal, "id" | "vuelta_id"> & { id?: string },
+): Promise<string> {
+  const id = datos.id ?? crypto.randomUUID();
+  await guardar(db, "gastos_variables", {
+    ...datos,
+    id,
+    ocurrido_en: ahora(),
+    vuelta_id: vuelta.id,
+    trayecto_id: datos.trayecto_id ?? null,
+    descripcion: datos.descripcion?.trim() || null,
+    lugar: datos.lugar?.trim() || null,
+    // Solo la liga lleva terminal y solo el ACPM lleva galones.
+    terminal: datos.tipo === "liga" ? (datos.terminal ?? null) : null,
+    galones: datos.tipo === "acpm" ? (datos.galones ?? null) : null,
   });
   return id;
 }
