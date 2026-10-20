@@ -37,7 +37,7 @@ export function esVigente(s: Salida): boolean {
   return s.estado === "pendiente" || s.estado === "realizada";
 }
 
-function ordenar(salidas: readonly Salida[]): Salida[] {
+function ordenar<S extends Salida>(salidas: readonly S[]): S[] {
   return [...salidas].sort(
     (a, b) => a.fecha.localeCompare(b.fecha) || (a.hora ?? "").localeCompare(b.hora ?? ""),
   );
@@ -118,9 +118,9 @@ export function regresosEsperados(
   });
 }
 
-export type DiaProgramacion = {
+export type DiaProgramacion<S extends Salida = Salida> = {
   fecha: FechaISO;
-  salidas: Salida[];
+  salidas: S[];
   /** La buseta está en Cali esperando regreso: no puede salir de Florencia. */
   enCali: boolean;
   /** Sin salidas vigentes y en Florencia: disponible. */
@@ -128,12 +128,12 @@ export type DiaProgramacion = {
 };
 
 /** Vista de calendario de un mes "YYYY-MM": salidas, dónde está la buseta y disponibilidad. */
-export function calendarioDelMes(
-  salidas: readonly Salida[],
+export function calendarioDelMes<S extends Salida>(
+  salidas: readonly S[],
   mes: string,
   hoy: FechaISO,
   opciones: OpcionesProgramacion = {},
-): DiaProgramacion[] {
+): DiaProgramacion<S>[] {
   const vigentes = salidas.filter(esVigente);
   const regresos = regresosEsperados(salidas, hoy, opciones);
   const porId = new Map(salidas.map((s) => [s.id, s]));
@@ -155,3 +155,47 @@ export function calendarioDelMes(
     return { fecha, salidas: delDia, enCali, disponible: !conSalida && !enCali };
   });
 }
+
+/** Fila de programacion_salidas tal como llega de la base (texto sin validar). */
+export type FilaSalida = {
+  id: string;
+  fecha: string;
+  hora: string | null;
+  sentido: string;
+  tipo: string;
+  estado: string;
+  cancelada_por_id: string | null;
+};
+
+const TIPOS_SALIDA: readonly TipoSalida[] = ["programada", "adicional"];
+const ESTADOS_SALIDA: readonly EstadoSalida[] = ["pendiente", "realizada", "cancelada_por_adicional", "cancelada"];
+
+/** Convierte una fila de la base en Salida (null si trae valores desconocidos). Hora "HH:MM". */
+export function salidaDesdeFila(f: FilaSalida): Salida | null {
+  const tipo = TIPOS_SALIDA.find((t) => t === f.tipo);
+  const estado = ESTADOS_SALIDA.find((e) => e === f.estado);
+  if ((f.sentido !== "ida" && f.sentido !== "regreso") || !tipo || !estado) return null;
+  return {
+    id: f.id,
+    fecha: f.fecha,
+    hora: f.hora ? f.hora.slice(0, 5) : null,
+    sentido: f.sentido,
+    tipo,
+    estado,
+    canceladaPorId: f.cancelada_por_id,
+  };
+}
+
+export const ETIQUETA_ESTADO_SALIDA: Record<EstadoSalida, string> = {
+  pendiente: "Pendiente",
+  realizada: "Realizada",
+  cancelada_por_adicional: "Cancelada por adicional",
+  cancelada: "Cancelada",
+};
+
+export const ETIQUETA_ESTADO_REGRESO: Record<EstadoRegreso, string> = {
+  hecho: "Regresó",
+  programado: "Regreso programado",
+  pendiente: "Regreso pendiente",
+  atrasado: "Regreso atrasado",
+};

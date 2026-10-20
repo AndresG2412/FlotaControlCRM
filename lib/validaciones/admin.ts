@@ -131,3 +131,31 @@ export const esquemaCategoria = z
   .object({ nombre: z.string().trim().min(1, "Escribe el nombre").max(60) })
   .strict();
 export const esquemaEstadoCategoria = z.object({ id: z.number().int().positive(), activa: z.boolean() }).strict();
+
+// ---------------------------------------------------------------------------
+// Programación de salidas (paso 7)
+// ---------------------------------------------------------------------------
+const sentidoSalida = z.enum(["ida", "regreso"]);
+const horaSalida = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida (HH:MM)")
+  .nullish();
+const notasSalida = z.string().trim().max(500).nullish();
+
+/** Salida programada que el admin digita (fecha + hora + sentido). */
+export const esquemaSalida = z
+  .object({ fecha: z.iso.date("Fecha inválida"), hora: horaSalida, sentido: sentidoSalida, notas: notasSalida })
+  .strict();
+export const esquemaEditarSalida = esquemaSalida.extend({ id: z.uuid() }).strict();
+export const esquemaCancelarSalida = z
+  .object({ id: z.uuid(), motivo: z.string().trim().min(1, "Di por qué se cancela").max(300) })
+  .strict();
+/** Salida adicional (día no programado); puede enlazar de una vez el trayecto que la originó. */
+export const esquemaAdicional = esquemaSalida.extend({ trayecto_id: z.uuid().nullish() }).strict();
+export const esquemaEnlazarTrayecto = z
+  .object({ trayecto_id: z.uuid(), salida_id: z.uuid().nullable() })
+  .strict();
+
+export type SalidaEntrada = z.infer<typeof esquemaSalida>;
+export type EditarSalida = z.infer<typeof esquemaEditarSalida>;
+export type AdicionalEntrada = z.infer<typeof esquemaAdicional>;

@@ -297,11 +297,13 @@ app/
   admin/                 # panel del dueño (exigirRol('admin') en layout y en cada page)
     configuracion/       # índice; gastos-fijos/ = vigentes, formulario por fecha e historial (acciones.ts, formulario.tsx); categorias/ de repuestos
     repuestos/           # historial filtrable, último cambio por categoría, registrar/corregir/eliminar (acciones.ts también crea y desactiva categorías)
+    programacion/        # calendario del mes, salidas, adicionales, regresos, trayectos sin salida
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
       acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
                          # pantalla-vuelta.tsx, formulario-planilla.tsx, polilla.tsx y gastos.tsx: diseño provisional
-                         # navegacion.tsx (Mi vuelta / Repuestos); repuestos/ = historial y formulario sin señal
+                         # navegacion.tsx (Mi vuelta / Repuestos / Agenda); repuestos/ = historial y formulario sin señal
+                         # agenda/ = próximas salidas, regreso pendiente y vencimientos (solo lectura, sin señal)
   sin-conexion/          # respaldo offline del service worker
   api/sincronizar/       # recibe los lotes de la cola offline (POST, sesión obligatoria)
   serwist/[path]/        # sirve el service worker
@@ -313,6 +315,7 @@ lib/
     vueltas.ts           # listarVueltas (con liquidación), detalleVuelta (fotos firmadas, gastos, liquidación y cuadre desde reporte_vueltas), listarConductores
     gastos-fijos.ts      # configuración de gastos fijos
     repuestos.ts         # historial de repuestos, categorías, buseta principal
+    programacion.ts      # salidas del mes (con margen) y trayectos sin salida
   auth/                  # sesión, roles y acciones de login/salir
   dominio/               # reglas de negocio puras + tests (sin React ni Next)
     programacion/        # regresos, adicionales, calendario
@@ -326,7 +329,7 @@ lib/
     cola.ts              # guardar/anular/finalizar sin señal, sincronizar, fusionar vuelta
     servidor.ts          # aplica un lote con la sesión del usuario (lo usa la API)
     fotos.ts, enviar.ts, ciclo.ts  # fotos comprimidas, envío HTTP, ciclo automático (subir → enviar → descargar)
-    descargar.ts         # trae vuelta en curso, trayectos, planillas, buseta y conductores
+    descargar.ts         # trae vuelta en curso y sus registros, repuestos, categorías, programación cercana y vencimientos
     vista.ts             # arma la pantalla de la vuelta desde lo local (puro, con tests)
     acciones-conductor.ts # iniciar vuelta/trayecto, planilla, pasajero, encomienda, varada, finalizar (sin señal)
     vista-repuestos.ts   # historial local de repuestos (propio = lo puede corregir)
@@ -349,7 +352,7 @@ Comandos: `npm run dev`, `npm test` (Vitest), `npm run typecheck`, `npm run lint
 4. ✅ Polilla y encomiendas + cálculo de ingreso real (sin tarifas, por decisión del dueño). Conductor (diseño provisional, sin señal): pasajeros de vía y encomiendas por trayecto, corregir y eliminar (anular) con confirmación, sin ninguna suma. Admin: polilla de cada trayecto con quién registró, "se lo quedó el conductor" resaltado, eliminar, e ingresos de la vuelta desde `reporte_vueltas`. Probado contra la base en una transacción revertida: la vista y `liquidar()` coinciden. Falta probar la pantalla del conductor con su cuenta real.
 5. ✅ Gastos fijos (configuración) y variables (ACPM, ligas, extras, arreglos) + liquidación y cuadre, solo para admin. Conductor (diseño provisional, sin señal): sección "Gastos" con botones por tipo, foto del recibo opcional, corregir y eliminar con confirmación, sin ninguna suma. Admin: `/admin/configuracion/gastos-fijos` (vigentes, cambiar/agregar/quitar con fecha, historial), detalle de la vuelta con liquidación (ganancia verde / pérdida roja), cuadre de caja, gastos fijos (ajustables por vuelta) y variables (eliminar con motivo), cerrar con confirmación del cuadre, reabrir cerrada con motivo, y liquidación en la lista. Probado contra la base en una transacción revertida: la vista y `liquidar()`/`diferenciaCuadre()` coinciden. Migración `20261012213649_cierre_vuelta`.
 6. ✅ Repuestos con foto. Conductor (diseño provisional, sin señal): pestaña "Repuestos" con historial compartido de la buseta (búsqueda y filtro por categoría), "último cambio por categoría" (hace N días), registrar con categoría, foto, kilometraje, costo, taller, notas y "se cambió en ruta" (enlaza la vuelta en curso); corrige y elimina (anula con confirmación y motivo) solo los suyos. Admin: `/admin/repuestos` (historial filtrable por categoría, mes y texto, foto con URL firmada, quién registró, "revisar hora", registrar, corregir, eliminar) y `/admin/configuracion/categorias` (agregar, activar o desactivar; no se borran). El gasto "Arreglo en ruta" remite a Repuestos. Sin migraciones: la base ya tenía tablas y permisos. Falta probarlo con sesión real (la base estaba pausada al terminar).
-7. Programación mensual (digitada) + regresos pendientes + salidas adicionales. La lógica pura ya está en `lib/dominio/programacion`. Falta en la base: hoy `marcar_salida_realizada()` solo marca la salida de la ida, porque el enlace con la programación está en `vueltas`. Hay que enlazar `trayectos` con `programacion_salidas` para que el regreso también quede `realizada`.
+7. ✅ Programación mensual (digitada) + regresos pendientes + salidas adicionales. Migración `20261020123104_trayectos_con_salida_programada`: `trayectos.salida_programada_id` (una salida, un trayecto). Al crear un trayecto se enlaza solo con la salida pendiente del mismo día y sentido, y esa salida queda `realizada` (también el regreso). El enlace solo lo cambia el admin. Admin (diseño provisional): `/admin/programacion` con calendario del mes (disponible, en Cali esperando regreso), "Guardar y seguir" para digitar el mes rápido, corregir o cancelar (con motivo) salidas pendientes, salida adicional (cancela la del día siguiente), regresos (pendiente, atrasado, programado, hecho) y "trayectos sin salida" (registrarlo como adicional o enlazarlo a una pendiente). Conductor: pestaña "Agenda" (sin señal) con próximas salidas, regreso pendiente y vencimientos. Probado contra la base en una transacción revertida. Falta probar las pantallas con sesión real. La foto de la tabla de programación como referencia quedó sin hacer.
 8. Pagos y vencimientos con recordatorio por correo.
 9. Reportes para admin (por vuelta, por mes, por conductor; incluye lo que se quedó el conductor).
 

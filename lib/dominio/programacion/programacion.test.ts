@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarioDelMes, regresosEsperados, salidaQueCancela, type Salida } from ".";
+import { calendarioDelMes, regresosEsperados, salidaDesdeFila, salidaQueCancela, type Salida } from ".";
 
 function salida(p: Partial<Salida> & Pick<Salida, "id" | "fecha" | "sentido">): Salida {
   return { hora: "05:00", tipo: "programada", estado: "pendiente", canceladaPorId: null, ...p };
@@ -97,5 +97,19 @@ describe("calendario del mes", () => {
     const dia = calendarioDelMes(salidas, "2026-10", "2026-10-01").find((x) => x.fecha === "2026-10-08")!;
     expect(dia.salidas).toHaveLength(1);
     expect(dia.disponible).toBe(true);
+  });
+});
+
+describe("salidaDesdeFila", () => {
+  it("convierte una fila de la base y recorta la hora", () => {
+    expect(
+      salidaDesdeFila({ id: "s", fecha: "2026-10-20", hora: "05:30:00", sentido: "ida", tipo: "programada", estado: "pendiente", cancelada_por_id: null }),
+    ).toEqual({ id: "s", fecha: "2026-10-20", hora: "05:30", sentido: "ida", tipo: "programada", estado: "pendiente", canceladaPorId: null });
+  });
+
+  it("descarta valores desconocidos", () => {
+    expect(
+      salidaDesdeFila({ id: "s", fecha: "2026-10-20", hora: null, sentido: "otro", tipo: "programada", estado: "pendiente", cancelada_por_id: null }),
+    ).toBeNull();
   });
 });

@@ -879,6 +879,7 @@ export type Database = {
           id: string
           ocurrido_en: string
           registrado_por: string
+          salida_programada_id: string | null
           sentido: string
           sincronizado_en: string
           terminal_fin: string | null
@@ -892,6 +893,7 @@ export type Database = {
           id?: string
           ocurrido_en?: string
           registrado_por: string
+          salida_programada_id?: string | null
           sentido: string
           sincronizado_en?: string
           terminal_fin?: string | null
@@ -905,6 +907,7 @@ export type Database = {
           id?: string
           ocurrido_en?: string
           registrado_por?: string
+          salida_programada_id?: string | null
           sentido?: string
           sincronizado_en?: string
           terminal_fin?: string | null
@@ -923,6 +926,13 @@ export type Database = {
             columns: ["registrado_por"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trayectos_salida_programada_id_fkey"
+            columns: ["salida_programada_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_salidas"
             referencedColumns: ["id"]
           },
           {

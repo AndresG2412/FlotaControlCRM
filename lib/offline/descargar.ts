@@ -7,6 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/tipos";
 import type { BaseLocal, RegistroLocal } from "./db";
 import { idsSinSincronizar } from "./cola";
+import { hoyEnBogota, sumarDias } from "@/lib/dominio/fechas";
+import type { FilaSalida } from "@/lib/dominio/programacion";
 import type { Tabla } from "./operaciones";
 
 export const AJUSTE_BUSETAS = "busetas";
@@ -15,6 +17,13 @@ export const AJUSTE_ULTIMA_DESCARGA = "ultimaDescarga";
 export const AJUSTE_CATEGORIAS = "categoriasRepuestos";
 /** Nombres de todos los usuarios (para mostrar quién registró un repuesto). */
 export const AJUSTE_PERSONAS = "personas";
+/** Programación cercana (salidas) y vencimientos, para la Agenda sin señal. */
+export const AJUSTE_PROGRAMACION = "programacion";
+export const AJUSTE_VENCIMIENTOS = "vencimientos";
+
+/** Días de programación que se guardan: un poco atrás (regresos) y un mes adelante. */
+const DIAS_ATRAS = 10;
+const DIAS_ADELANTE = 45;
 
 /** Repuestos que se guardan en el celular para consultar el historial sin señal. */
 const MAX_REPUESTOS = 300;
@@ -22,6 +31,13 @@ const MAX_REPUESTOS = 300;
 export type BusetaCache = { id: string; placa: string; numero_interno: string | null };
 export type ConductorCache = { id: string; nombre: string };
 export type CategoriaCache = { id: number; nombre: string; activa: boolean };
+export type VencimientoCache = {
+  id: string;
+  nombre: string;
+  fecha_pago: string;
+  fecha_recordatorio: string | null;
+  fecha_vencimiento: string | null;
+};
 
 type Cliente = SupabaseClient<Database>;
 
@@ -30,7 +46,8 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
   const locales = (await db.registros.where("tabla").equals("vueltas").toArray()).map((r) => r.id);
   const filtro = locales.length ? `estado.eq.en_curso,id.in.(${locales.join(",")})` : "estado.eq.en_curso";
 
-  const [vueltas, busetas, conductores, personas, categorias, repuestos] = await Promise.all([
+  const hoy = hoyEnBogota();
+  const [vueltas, busetas, conductores, personas, categorias, repuestos, programacion, vencimientos] = await Promise.all([
     supabase.from("vueltas").select("*").or(filtro),
     supabase.from("busetas").select("id, placa, numero_interno").eq("activa", true),
     supabase.from("perfiles").select("id, nombre").eq("rol", "conductor").eq("activo", true).order("nombre"),
@@ -38,8 +55,19 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
     supabase.from("repuesto_categorias").select("id, nombre, activa").order("id"),
     // Historial compartido de la buseta (todos lo ven), más recientes primero.
     supabase.from("repuestos").select("*").order("ocurrido_en", { ascending: false }).limit(MAX_REPUESTOS),
+    supabase
+      .from("programacion_salidas")
+      .select("id, fecha, hora, sentido, tipo, estado, cancelada_por_id")
+      .gte("fecha", sumarDias(hoy, -DIAS_ATRAS))
+      .lte("fecha", sumarDias(hoy, DIAS_ADELANTE))
+      .order("fecha"),
+    // Solo nombre y fechas: la función no expone costos ni comprobantes.
+    supabase.rpc("vencimientos_buseta"),
   ]);
-  if (vueltas.error || busetas.error || conductores.error || personas.error || categorias.error || repuestos.error) {
+  if (
+    vueltas.error || busetas.error || conductores.error || personas.error || categorias.error || repuestos.error ||
+    programacion.error || vencimientos.error
+  ) {
     throw new Error("No se pudo descargar");
   }
 
@@ -95,6 +123,13 @@ export async function descargar(db: BaseLocal, supabase: Cliente): Promise<void>
       { clave: AJUSTE_CONDUCTORES, valor: conductores.data satisfies ConductorCache[] },
       { clave: AJUSTE_PERSONAS, valor: personas.data satisfies ConductorCache[] },
       { clave: AJUSTE_CATEGORIAS, valor: categorias.data satisfies CategoriaCache[] },
+      { clave: AJUSTE_PROGRAMACION, valor: programacion.data satisfies FilaSalida[] },
+      {
+        clave: AJUSTE_VENCIMIENTOS,
+        valor: vencimientos.data.map(({ id, nombre, fecha_pago, fecha_recordatorio, fecha_vencimiento }) => ({
+          id, nombre, fecha_pago, fecha_recordatorio, fecha_vencimiento,
+        })) satisfies VencimientoCache[],
+      },
       { clave: AJUSTE_ULTIMA_DESCARGA, valor: ahora },
     ]);
   });

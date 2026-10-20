@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 const SECCIONES = [
   { href: "/conductor", titulo: "Mi vuelta" },
   { href: "/conductor/repuestos", titulo: "Repuestos" },
+  { href: "/conductor/agenda", titulo: "Agenda" },
 ] as const;
 
 export function NavegacionConductor() {
