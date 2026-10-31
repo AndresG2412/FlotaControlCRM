@@ -27,7 +27,6 @@ export function FormularioPlanilla({
   const previa = terminal.planilla;
   const [emitida, setEmitida] = useState(previa?.emitida ?? true);
   const [neto, setNeto] = useState(previa?.neto != null ? String(previa.neto) : "");
-  const [numero, setNumero] = useState(previa?.numero ?? "");
   const [pasajeros, setPasajeros] = useState(previa?.pasajeros != null ? String(previa.pasajeros) : "");
   const [motivo, setMotivo] = useState(previa?.motivo_sin_planilla ?? "");
   const [foto, setFoto] = useState<File | null>(null);
@@ -49,7 +48,7 @@ export function FormularioPlanilla({
         terminal: terminal.codigo,
         emitida,
         neto: monto,
-        numero: numero.trim() || null,
+        numero: previa?.numero ?? null, // ya no se pide; al corregir se conserva
         pasajeros: pasajeros ? Number(pasajeros) : null,
         motivo_sin_planilla: emitida ? null : motivo.trim(),
         foto_path,
@@ -86,10 +85,6 @@ export function FormularioPlanilla({
             <span className="text-sm">Neto a pagar</span>
             <input className={campo} inputMode="numeric" value={neto} onChange={(e) => setNeto(e.target.value)} placeholder="600.000" autoFocus />
             {montoLeido !== null && <span className="monto text-xs text-texto-suave">{formatearPesos(montoLeido)}</span>}
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Número de planilla (opcional)</span>
-            <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm">Pasajeros en planilla (opcional)</span>

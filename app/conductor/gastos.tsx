@@ -118,7 +118,6 @@ function FormularioGasto({
   alTerminar: () => void;
 }) {
   const [monto, setMonto] = useState(editar ? String(editar.monto) : "");
-  const [galones, setGalones] = useState(editar?.galones != null ? String(editar.galones) : "");
   const [lugar, setLugar] = useState(editar?.lugar ?? "");
   const [descripcion, setDescripcion] = useState(editar?.descripcion ?? "");
   const [terminal, setTerminal] = useState<CodigoTerminal | null>(editar?.terminal ?? null);
@@ -131,9 +130,6 @@ function FormularioGasto({
     setError(null);
     const valor = leerPesos(monto);
     if (valor === null || valor < 1) return setError("Escribe cuánto fue, sin decimales");
-    // Los galones no son dinero: admiten decimales con coma o punto.
-    const gal = galones.trim() ? Number(galones.replace(",", ".")) : null;
-    if (gal !== null && (!Number.isFinite(gal) || gal <= 0)) return setError("Galones inválidos");
 
     setGuardando(true);
     try {
@@ -143,7 +139,7 @@ function FormularioGasto({
         id: editar?.id,
         tipo,
         monto: valor,
-        galones: gal,
+        galones: editar?.galones ?? null, // ya no se piden; al corregir se conservan
         lugar,
         descripcion,
         terminal,
@@ -197,10 +193,6 @@ function FormularioGasto({
 
         {tipo === "acpm" && (
           <>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Galones (opcional)</span>
-              <input className={campo} inputMode="decimal" value={galones} onChange={(e) => setGalones(e.target.value)} placeholder="25,5" />
-            </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm">¿Dónde? (opcional)</span>
               <input className={campo} value={lugar} maxLength={120} onChange={(e) => setLugar(e.target.value)} placeholder="Estación de Pitalito" />

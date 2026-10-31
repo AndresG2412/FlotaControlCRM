@@ -49,7 +49,7 @@ Cada vuelta lleva **dos conductores**:
 - La terminal final del trayecto (Cali en la ida, Florencia en el regreso) **nunca** emite planilla en ese trayecto.
 - El **neto se digita a mano** en un campo numérico. La foto de la planilla es **opcional**, solo como evidencia; el sistema no lee datos de fotos.
 - El **neto a pagar ya es el valor final** (con los descuentos de la terminal aplicados). No se registra bruto.
-- Campos: terminal, fecha/hora, número de planilla (opcional), neto a pagar, pasajeros en planilla (opcional), foto (opcional).
+- Campos: terminal, fecha/hora, neto a pagar, pasajeros en planilla (opcional), foto (opcional). El conductor ya no digita el número de planilla (decisión del dueño); la columna `numero` sigue en la base y el admin la puede corregir.
 
 ### Módulo 2 — Polilla (pasajeros en vía y encomiendas)
 
@@ -72,6 +72,7 @@ ingreso_real(vuelta)   = Σ neto de planillas + Σ polilla + Σ encomiendas
 
 Ejemplo: un pasajero sube cerca de Florencia, va a Cali y paga $80.000. En Pitalito sigue en el bus, así que el conductor paga $55.000 en taquilla (Pitalito → Cali) y queda en la planilla; esos $55.000 ya vienen dentro del neto de esa planilla. Sobran $25.000: van a polilla o se los queda el conductor, y queda registrado cuál de los dos.
 
+- **En la app del conductor el sobrante siempre va a la caja** (decisión del dueño): ya no existe la opción "Me lo quedé" y todo pasajero se guarda con `destino_sobrante = polilla`. El valor `conductor` sigue en la base (registros viejos y reportes) pero el conductor no lo puede elegir.
 - Lo que se queda el conductor **no suma al ingreso**, pero se muestra en los reportes como un total visible por vuelta y por conductor. La idea es que nada quede sin registro.
 - **Sin tarifas** (decisión del dueño): no hay tabla de precios ni monto sugerido. El conductor digita cuánto pagó en taquilla y, a conciencia, dice si el sobrante va a la caja o se lo quedó. La confianza en los conductores pesa más que controlar cada peso. La tabla `tarifas` existe en la base pero no se usa.
 - **Facturar es obligatorio** si el pasajero sigue en el bus al pasar por una terminal. Se factura en la **primera** terminal que pasa (`terminalDeFacturacion`). Si se baja en la siguiente terminal, no se factura.
@@ -230,7 +231,7 @@ Decisiones del paso 5 (gastos, liquidación y cuadre):
 - Todo el dinero del detalle sale de `reporte_vueltas`; la UI solo calcula la vista previa de la diferencia al cerrar (con `diferenciaCuadre`). `vuelta_gastos_fijos` guarda quién ajustó un valor (`actualizado_por`).
 - Una vuelta `cerrada` es de solo lectura para el admin también en gastos fijos y variables (trigger `bloquear_si_vuelta_cerrada`), no solo en las acciones.
 - El conductor ve sus gastos uno por uno (tipo, monto, dónde, "sin enviar"); `VistaVuelta.gastos` nunca se suma.
-- Los galones admiten decimales (no son dinero). Solo la liga lleva terminal y solo el ACPM, galones. "Arreglo en ruta" es por ahora solo descripción; se enlazará con Repuestos en el paso 6.
+- El conductor ya no digita galones del ACPM (decisión del dueño); la columna sigue en la base y al corregir un gasto viejo se conserva. Los galones admiten decimales (no son dinero). Solo la liga lleva terminal y solo el ACPM, galones. "Arreglo en ruta" es por ahora solo descripción; se enlazará con Repuestos en el paso 6.
 - Pendiente de probar en pantalla con sesión real: ver el resumen del paso en el cierre de la conversación.
 
 ### PWA offline-first

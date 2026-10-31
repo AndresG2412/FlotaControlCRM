@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ZodError } from "zod";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
-import { destinosDeEncomienda, terminalDeFacturacion, type DestinoSobrante } from "@/lib/dominio/polilla";
+import { destinosDeEncomienda, terminalDeFacturacion } from "@/lib/dominio/polilla";
 import {
   buscarTramo,
   destinosPosibles,
@@ -146,7 +146,6 @@ function FormularioPasajero({
   const [destino, setDestino] = useState<CodigoTerminal>(editar?.destino ?? destinos[destinos.length - 1]);
   const [cobrado, setCobrado] = useState(editar ? String(editar.monto_cobrado) : "");
   const [facturado, setFacturado] = useState(editar?.facturado ? String(editar.monto_facturado) : "");
-  const [destinoSobrante, setDestinoSobrante] = useState<DestinoSobrante>(editar?.destino_sobrante ?? "polilla");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [guardados, setGuardados] = useState(0);
@@ -174,7 +173,7 @@ function FormularioPasajero({
         facturado: factura !== null,
         terminal_facturacion: factura,
         monto_facturado: montoFacturado ?? 0,
-        destino_sobrante: destinoSobrante,
+        destino_sobrante: "polilla", // decisión del dueño: el sobrante siempre va a la caja
       });
       refrescar();
       if (seguir) {
@@ -233,17 +232,7 @@ function FormularioPasajero({
       )}
 
       {sobrante !== null && sobrante >= 0 && (
-        <fieldset className="flex flex-col gap-1">
-          <legend className="monto mb-1 text-sm">Sobran {formatearPesos(sobrante)}. ¿A dónde van?</legend>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" className={opcion(destinoSobrante === "polilla")} onClick={() => setDestinoSobrante("polilla")}>
-              A la caja (polilla)
-            </button>
-            <button type="button" className={opcion(destinoSobrante === "conductor")} onClick={() => setDestinoSobrante("conductor")}>
-              Me lo quedé
-            </button>
-          </div>
-        </fieldset>
+        <p className="monto text-sm text-texto-suave">Sobran {formatearPesos(sobrante)}: van a la caja (polilla).</p>
       )}
 
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
