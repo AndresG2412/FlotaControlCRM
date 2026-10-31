@@ -56,7 +56,7 @@ export function PantallaVuelta({ uid }: { uid: string }) {
   if (!datos) return <p className="py-8 text-center text-texto-suave">Cargando…</p>;
   const { vista, busetas, conductores } = datos;
 
-  if (!vista) return <IniciarVuelta uid={uid} busetas={busetas} conductores={conductores} />;
+  if (!vista) return <IniciarVuelta uid={uid} busetas={busetas} />;
   if (!vista.asignado) return <UnirseAVuelta vista={vista} conductores={conductores} />;
   return <VueltaEnCurso uid={uid} vista={vista} conductores={conductores} />;
 }
@@ -66,9 +66,7 @@ function nombreDe(conductores: ConductorCache[], id: string | null) {
   return conductores.find((c) => c.id === id)?.nombre ?? "Conductor";
 }
 
-function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: BusetaCache[]; conductores: ConductorCache[] }) {
-  const [puesto, setPuesto] = useState<"florencia" | "pitalito">("florencia");
-  const [companero, setCompanero] = useState("");
+function IniciarVuelta({ uid, busetas }: { uid: string; busetas: BusetaCache[] }) {
   const [error, setError] = useState<string | null>(null);
 
   if (busetas.length === 0) {
@@ -84,7 +82,8 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
   async function iniciar() {
     setError(null);
     try {
-      await iniciarVuelta(baseLocal(), { uid, busetaId: busetas[0].id, puesto, companeroId: companero || null });
+      // Por ahora un solo conductor usa la app: queda en el puesto Florencia, sin compañero.
+      await iniciarVuelta(baseLocal(), { uid, busetaId: busetas[0].id, puesto: "florencia", companeroId: null });
       refrescar();
     } catch (e) {
       setError(e instanceof YaHayVueltaEnCurso ? e.message : "No se pudo iniciar la vuelta");
@@ -95,24 +94,6 @@ function IniciarVuelta({ uid, busetas, conductores }: { uid: string; busetas: Bu
     <section className={tarjetaSola}>
       <h1 className="text-lg font-semibold">Iniciar vuelta</h1>
       <p className="text-sm text-texto-suave">Buseta {busetas[0].placa}{busetas[0].numero_interno ? ` · ${busetas[0].numero_interno}` : ""}</p>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm">Yo voy como</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {(["florencia", "pitalito"] as const).map((p) => (
-            <button key={p} type="button" onClick={() => setPuesto(p)}
-              className={`h-11 neu-opcion ${puesto === p ? "neu-opcion-activa" : ""}`}>
-              Conductor {p === "florencia" ? "Florencia" : "Pitalito"}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Compañero</span>
-        <select className="h-12 neu-campo px-3" value={companero} onChange={(e) => setCompanero(e.target.value)}>
-          <option value="">Todavía no sé</option>
-          {conductores.filter((c) => c.id !== uid).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
-      </label>
       {error && <p role="alert" className="text-sm text-perdida">{error}</p>}
       <button className={boton} onClick={iniciar}>Iniciar vuelta</button>
     </section>
