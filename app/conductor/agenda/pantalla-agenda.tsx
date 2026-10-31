@@ -1,6 +1,6 @@
 "use client";
 
-import { diasEntre, hoyEnBogota } from "@/lib/dominio/fechas";
+import { diasEntre, fechaNumerica, hoyEnBogota } from "@/lib/dominio/fechas";
 import {
   ETIQUETA_ESTADO_REGRESO,
   ETIQUETA_ESTADO_SALIDA,
@@ -12,7 +12,6 @@ import {
 import { baseLocal } from "@/lib/offline/db";
 import { AJUSTE_PROGRAMACION, AJUSTE_VENCIMIENTOS, type VencimientoCache } from "@/lib/offline/descargar";
 import { useConsulta } from "@/lib/offline/use-consulta";
-import { fechaCorta } from "@/app/admin/vueltas/etiquetas";
 
 // Agenda del conductor: próximas salidas, regreso pendiente y vencimientos
 // (SOAT, seguro, tecnomecánica…). Solo fechas: nada de costos ni dinero.
@@ -64,7 +63,7 @@ export function PantallaAgenda() {
           {regresos.map((r) => (
             <p key={r.idaId} className="text-sm">
               {ETIQUETA_ESTADO_REGRESO[r.estado]}:{" "}
-              {r.desde === r.hasta ? fechaCorta(r.desde) : `entre ${fechaCorta(r.desde)} y ${fechaCorta(r.hasta)}`}
+              {r.desde === r.hasta ? fechaNumerica(r.desde) : `entre ${fechaNumerica(r.desde)} y ${fechaNumerica(r.hasta)}`}
             </p>
           ))}
         </section>
@@ -79,7 +78,7 @@ export function PantallaAgenda() {
             <ul className="flex flex-col gap-1 text-sm">
               {proximas.map((s: Salida) => (
                 <li key={s.id} className={`flex justify-between gap-2 border-b border-borde py-1 ${s.estado.startsWith("cancelada") ? "text-texto-suave line-through" : ""}`}>
-                  <span>{fechaCorta(s.fecha)}{s.hora ? ` · ${s.hora}` : ""}</span>
+                  <span>{fechaNumerica(s.fecha)}{s.hora ? ` · ${s.hora}` : ""}</span>
                   <span>
                     {s.sentido === "ida" ? "Ida" : "Regreso"}
                     {s.tipo === "adicional" ? " (adicional)" : ""}
@@ -103,7 +102,7 @@ export function PantallaAgenda() {
                   <li key={v.id} className="flex justify-between gap-2 border-b border-borde py-1">
                     <span>{v.nombre}</span>
                     <span className={dias < 0 ? "text-perdida" : dias <= 30 ? "text-aviso" : "text-texto-suave"}>
-                      {fechaCorta(v.fecha_vencimiento!)} · {dias < 0 ? `vencido hace ${-dias} días` : dias === 0 ? "vence hoy" : `faltan ${dias} días`}
+                      {fechaNumerica(v.fecha_vencimiento!)} · {dias < 0 ? `vencido hace ${-dias} días` : dias === 0 ? "vence hoy" : `faltan ${dias} días`}
                     </span>
                   </li>
                 );
