@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { busetaPrincipal, listarCategorias, listarRepuestos } from "@/lib/admin/repuestos";
+import { busetaPrincipal, listarCategorias, listarRepuestos, ultimosCambios } from "@/lib/admin/repuestos";
 import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
 import { fechaNumerica, formatearFechaHora } from "@/lib/dominio/fechas";
 import { ultimoPorCategoria } from "@/lib/dominio/repuestos";
-import { esquemaFiltrosRepuestos } from "@/lib/validaciones/admin";
+import { esquemaFiltrosRepuestos, type FiltrosRepuestos } from "@/lib/validaciones/admin";
 import { AccionesRepuesto, NuevoRepuesto } from "./controles";
 
 export const metadata = { title: "Repuestos" };
@@ -23,15 +23,16 @@ export default async function Repuestos({ searchParams }: PageProps<"/admin/repu
     mes: uno(params.mes) || undefined,
     texto: uno(params.texto) || undefined,
     anulados: uno(params.anulados) || undefined,
+    pagina: uno(params.pagina) || undefined,
   });
 
-  const [categorias, repuestos, todosActivos, buseta] = await Promise.all([
+  const [categorias, { repuestos, total, pagina, paginas }, cambios, buseta] = await Promise.all([
     listarCategorias(),
     listarRepuestos(filtros),
-    listarRepuestos(),
+    ultimosCambios(),
     busetaPrincipal(),
   ]);
-  const ultimos = ultimoPorCategoria(categorias, todosActivos);
+  const ultimos = ultimoPorCategoria(categorias, cambios);
 
   return (
     <section className="flex flex-col gap-6">
@@ -88,6 +89,11 @@ export default async function Repuestos({ searchParams }: PageProps<"/admin/repu
           {repuestos.length === 0 ? (
             <p className="text-center text-sm text-texto-suave">No hay repuestos con ese filtro.</p>
           ) : (
+            <>
+            <p className="text-sm text-texto-suave">
+              {total} {total === 1 ? "repuesto" : "repuestos"}
+              {paginas > 1 && ` · página ${pagina} de ${paginas}`}
+            </p>
             <ul className="grid gap-5 md:grid-cols-2 md:items-start">
               {repuestos.map((r) => (
                 <li key={r.id} className={`${tarjeta} ${r.estado === "anulado" ? "opacity-70" : ""}`}>
@@ -126,9 +132,43 @@ export default async function Repuestos({ searchParams }: PageProps<"/admin/repu
                 </li>
               ))}
             </ul>
+            <Paginacion filtros={filtros} pagina={pagina} paginas={paginas} />
+            </>
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+/** URL del historial con los mismos filtros y otra página. */
+function enlacePagina(filtros: FiltrosRepuestos, pagina: number): string {
+  const q = new URLSearchParams();
+  if (filtros.categoria) q.set("categoria", String(filtros.categoria));
+  if (filtros.mes) q.set("mes", filtros.mes);
+  if (filtros.texto) q.set("texto", filtros.texto);
+  if (filtros.anulados) q.set("anulados", "1");
+  if (pagina > 1) q.set("pagina", String(pagina));
+  const texto = q.toString();
+  return texto ? `/admin/repuestos?${texto}` : "/admin/repuestos";
+}
+
+function Paginacion({ filtros, pagina, paginas }: { filtros: FiltrosRepuestos; pagina: number; paginas: number }) {
+  if (paginas <= 1) return null;
+  const boton = "h-10 neu-boton px-4 text-sm content-center";
+  return (
+    <nav aria-label="Páginas del historial" className="flex items-center justify-center gap-3">
+      {pagina > 1 ? (
+        <Link href={enlacePagina(filtros, pagina - 1)} className={boton}>← Anterior</Link>
+      ) : (
+        <span className={`${boton} opacity-40`} aria-disabled>← Anterior</span>
+      )}
+      <span className="text-sm text-texto-suave">{pagina} / {paginas}</span>
+      {pagina < paginas ? (
+        <Link href={enlacePagina(filtros, pagina + 1)} className={boton}>Siguiente →</Link>
+      ) : (
+        <span className={`${boton} opacity-40`} aria-disabled>Siguiente →</span>
+      )}
+    </nav>
   );
 }

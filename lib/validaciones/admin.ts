@@ -108,6 +108,7 @@ export const esquemaFiltrosRepuestos = z.object({
   categoria: z.coerce.number().int().positive().optional().catch(undefined),
   mes: mes.optional().catch(undefined),
   texto: z.string().trim().max(60).optional().catch(undefined),
+  pagina: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
   anulados: z
     .enum(["1"])
     .optional()

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ZodError } from "zod";
 import { formatearPesos, leerPesos } from "@/lib/dominio/dinero";
 import { fechaNumerica, hoyEnBogota } from "@/lib/dominio/fechas";
+import { paginar, POR_PAGINA } from "@/lib/dominio/paginacion";
 import { filtrarRepuestos, ultimoPorCategoria } from "@/lib/dominio/repuestos";
 import { guardarRepuesto } from "@/lib/offline/acciones-conductor";
 import { sincronizarAhora } from "@/lib/offline/ciclo";
@@ -61,6 +62,7 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
   const [modo, setModo] = useState<Modo>({ tipo: "lista" });
   const [categoriaId, setCategoriaId] = useState<number | null>(null);
   const [texto, setTexto] = useState("");
+  const [paginaPedida, setPaginaPedida] = useState(1);
 
   if (!datos) return <p className="py-8 text-center text-texto-suave">Cargando…</p>;
   const { repuestos, vueltaEnCurso, categorias, busetas, personas } = datos;
@@ -94,6 +96,13 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
 
   const ultimos = ultimoPorCategoria(activas, repuestos).filter((u) => u.ultimo);
   const lista = filtrarRepuestos(repuestos, { categoriaId, texto });
+  // El historial completo está en el celular (funciona sin señal); solo se pinta una página.
+  const { pagina, paginas, desde } = paginar(lista.length, paginaPedida);
+  const visibles = lista.slice(desde, desde + POR_PAGINA);
+  const irA = (n: number) => {
+    setPaginaPedida(n);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -124,11 +133,11 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
 
         <div className="flex flex-col gap-5">
           <section className="flex flex-col gap-2">
-            <input className={campo} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar: pastillas, aceite…" aria-label="Buscar repuesto" />
+            <input className={campo} value={texto} onChange={(e) => { setTexto(e.target.value); setPaginaPedida(1); }} placeholder="Buscar: pastillas, aceite…" aria-label="Buscar repuesto" />
             <div className="flex flex-wrap gap-2">
-              <button className={opcion(categoriaId === null)} onClick={() => setCategoriaId(null)}>Todas</button>
+              <button className={opcion(categoriaId === null)} onClick={() => { setCategoriaId(null); setPaginaPedida(1); }}>Todas</button>
               {activas.map((c) => (
-                <button key={c.id} className={opcion(categoriaId === c.id)} onClick={() => setCategoriaId(c.id)}>
+                <button key={c.id} className={opcion(categoriaId === c.id)} onClick={() => { setCategoriaId(c.id); setPaginaPedida(1); }}>
                   {c.nombre}
                 </button>
               ))}
@@ -138,8 +147,13 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
           {lista.length === 0 ? (
             <p className="text-center text-sm text-texto-suave">No hay repuestos con ese filtro.</p>
           ) : (
+            <>
+            <p className="text-sm text-texto-suave">
+              {lista.length} {lista.length === 1 ? "repuesto" : "repuestos"}
+              {paginas > 1 && ` · página ${pagina} de ${paginas}`}
+            </p>
             <ul className="grid gap-3 md:grid-cols-2 md:items-start" aria-label="Historial de repuestos">
-              {lista.map((r) => (
+              {visibles.map((r) => (
                 <li key={r.id} className="flex flex-col gap-1 neu-pozo p-3">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-medium">{r.nombre}</span>
@@ -170,6 +184,14 @@ export function PantallaRepuestos({ uid }: { uid: string }) {
                 </li>
               ))}
             </ul>
+            {paginas > 1 && (
+              <nav aria-label="Páginas del historial" className="flex items-center justify-center gap-3">
+                <button className="h-11 neu-boton px-4 disabled:opacity-40" disabled={pagina <= 1} onClick={() => irA(pagina - 1)}>← Anterior</button>
+                <span className="text-sm text-texto-suave">{pagina} / {paginas}</span>
+                <button className="h-11 neu-boton px-4 disabled:opacity-40" disabled={pagina >= paginas} onClick={() => irA(pagina + 1)}>Siguiente →</button>
+              </nav>
+            )}
+            </>
           )}
         </div>
       </div>
