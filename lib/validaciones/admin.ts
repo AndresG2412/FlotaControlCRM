@@ -190,3 +190,7 @@ export const esquemaPago = z
     message: "El vencimiento no puede ser antes del pago",
   });
 export type PagoEntrada = z.infer<typeof esquemaPago>;
+
+/** El admin inicia la vuelta de hoy a nombre de un conductor (queda en el puesto Florencia). */
+export const esquemaIniciarVuelta = z.object({ conductor_id: z.uuid("Elige el conductor") }).strict();
+export type IniciarVueltaEntrada = z.infer<typeof esquemaIniciarVuelta>;

@@ -274,6 +274,37 @@
     cursor: not-allowed;
   }
 
+  /* Acción que termina algo (finalizar la vuelta): rojo sólido, mismo relieve. */
+  .neu-boton-peligro {
+    background: linear-gradient(145deg, #dc2626, #991b1b);
+    color: #ffffff;
+    border-radius: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow:
+      5px 5px 12px var(--sombra),
+      -4px -4px 10px var(--luz),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transition:
+      box-shadow 180ms ease-out,
+      transform 120ms ease-out,
+      filter 180ms ease-out;
+  }
+  .neu-boton-peligro:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .neu-boton-peligro:active:not(:disabled) {
+    transform: scale(0.98);
+    box-shadow:
+      inset 3px 3px 8px rgba(0, 0, 0, 0.3),
+      inset -2px -2px 6px rgba(255, 255, 255, 0.12);
+    transition-duration: 80ms;
+  }
+  .neu-boton-peligro:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   /* Botón de "elegir foto" con el mismo relieve que los demás botones. */
   input[type="file"] {
     font-size: 0.875rem;

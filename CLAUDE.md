@@ -173,7 +173,7 @@ Sección aparte, independiente de las vueltas, para gastos periódicos de la bus
 
 ### Usuarios y roles
 
-- **admin**: el dueño. Ve y edita todo, configura gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
+- **admin**: el dueño. Puede **iniciar la vuelta** desde el panel (`/admin/vueltas`, `iniciarVueltaAdmin`): queda con fecha de hoy y el conductor elegido en el puesto Florencia; el conductor la ve al sincronizar y sigue registrando desde el celular. También puede **finalizar** la vuelta en curso (botón rojo con confirmación). Ve y edita todo, configura gastos fijos, pagos a conductores, programación y categorías; ve liquidaciones, cuadres, reportes y pagos/vencimientos; cierra vueltas.
 - **conductor**: cada conductor tiene su propia cuenta. Los dos conductores de una vuelta **comparten sus registros**: ambos ven y corrigen planillas, polilla, encomiendas y gastos de esa vuelta (se guarda quién registró y quién corrigió). Nunca ven totales (ver *Privacidad de resultados*). No pueden editar una vuelta cerrada. Además:
   - **Por ahora un solo conductor usa la app** (decisión del dueño): "Iniciar vuelta" es solo un botón, sin elegir puesto ni compañero; el conductor queda en el puesto Florencia. El modelo de dos puestos sigue en la base y el admin puede cambiar los conductores de la vuelta.
   - **Crea y finaliza vueltas.** Cualquiera de los dos la puede crear, pero solo hay **una vuelta en curso por buseta**: no se empieza otra sin finalizar la anterior. Mientras exista, se sigue registrando en ella terminal por terminal. Todo conductor ve la vuelta en curso y puede unirse o reemplazar a un compañero en un puesto (`unirse_a_vuelta()`). Si se equivocó al finalizar, puede reabrirla mientras el admin no la haya cerrado.
@@ -306,7 +306,9 @@ app/
     pagos/               # vigentes con estado, renovar, comprobante, historial, eliminar
     reportes/            # resumen del mes, por vuelta, por conductor, por mes; csv/ = descarga
     vueltas/             # lista con filtros (mes, estado, tipo) y detalle [id] con trayectos y planillas
-      acciones.ts        # Server Actions: corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
+      iniciar.tsx        # tarjeta "Iniciar vuelta" (o la vuelta en curso con "Finalizar")
+      finalizar.tsx      # botón rojo "Finalizar vuelta" con confirmación (lista y detalle)
+      acciones.ts        # Server Actions: iniciar y finalizar vuelta, corregir/anular planilla, conductores y tipo, reabrir, anular gasto, ajustar fijo, cerrarVuelta, reabrirVueltaCerrada
   conductor/             # captura en ruta (exigirRol('conductor')); nunca totales
                          # pantalla-vuelta.tsx, formulario-planilla.tsx, polilla.tsx y gastos.tsx: diseño provisional
                          # navegacion.tsx (Mi vuelta / Repuestos / Agenda); repuestos/ = historial y formulario sin señal

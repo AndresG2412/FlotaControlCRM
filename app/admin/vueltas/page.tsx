@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { listarVueltas, type VueltaEnLista } from "@/lib/admin/vueltas";
+import { listarConductores, listarVueltas, vueltaEnCurso, type VueltaEnLista } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
 import { hoyEnBogota } from "@/lib/dominio/fechas";
 import { esquemaFiltrosVueltas } from "@/lib/validaciones/admin";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "./etiquetas";
+import { IniciarVuelta } from "./iniciar";
 
 export const metadata = { title: "Vueltas" };
 
@@ -25,7 +26,7 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
     estado: uno(params.estado) || undefined,
     tipo: uno(params.tipo) || undefined,
   });
-  const vueltas = await listarVueltas(filtros);
+  const [vueltas, conductores, enCurso] = await Promise.all([listarVueltas(filtros), listarConductores(), vueltaEnCurso()]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -33,6 +34,11 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
         <h1 className="titulo-pagina">Vueltas</h1>
         <Link href="/admin" className="text-sm text-marca underline">Panel</Link>
       </div>
+
+      <IniciarVuelta
+        conductores={conductores}
+        enCurso={enCurso ? { id: enCurso.id, fecha: fechaCorta(enCurso.fecha_inicio) } : null}
+      />
 
       <form method="get" className="flex flex-wrap items-end gap-2 neu-tarjeta p-3">
         <label className="flex flex-col gap-1 text-sm">

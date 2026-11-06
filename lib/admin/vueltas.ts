@@ -530,6 +530,21 @@ async function ingresosDeVuelta(supabase: Cliente, id: string): Promise<Ingresos
   };
 }
 
+/** La vuelta en curso de la buseta (solo puede haber una), o null. */
+export async function vueltaEnCurso(): Promise<{ id: string; fecha_inicio: string } | null> {
+  await exigirRol("admin");
+  const supabase = await crearClienteServidor();
+  const { data, error } = await supabase
+    .from("vueltas")
+    .select("id, fecha_inicio")
+    .eq("estado", "en_curso")
+    .order("fecha_inicio", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("No se pudo leer la vuelta en curso");
+  return data;
+}
+
 /** Conductores activos, para asignarlos a una vuelta. */
 export async function listarConductores(): Promise<Persona[]> {
   await exigirRol("admin");

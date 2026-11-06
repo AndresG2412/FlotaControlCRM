@@ -20,6 +20,7 @@ import type { TerminalConPlanilla } from "@/lib/dominio/planillas";
 import { buscarTramo, TERMINALES } from "@/lib/dominio/ruta";
 import { accionesAdmin } from "@/lib/dominio/vuelta";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "../etiquetas";
+import { FinalizarVuelta } from "../finalizar";
 import {
   AccionesPlanilla,
   AjustarGastoFijo,
@@ -86,6 +87,7 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
               conductores={conductores}
             />
           )}
+          {permitido.finalizar && <FinalizarVuelta id={vuelta.id} />}
           {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
           {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
         </div>

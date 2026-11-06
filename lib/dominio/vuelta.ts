@@ -71,12 +71,14 @@ export function esTipoVuelta(valor: string): valor is TipoVuelta {
  */
 export function accionesAdmin(estado: EstadoVuelta): {
   editar: boolean;
+  finalizar: boolean;
   reabrir: boolean;
   cerrar: boolean;
   reabrirCerrada: boolean;
 } {
   return {
     editar: estado !== "cerrada",
+    finalizar: estado === "en_curso",
     reabrir: estado === "finalizada",
     cerrar: estado === "finalizada",
     reabrirCerrada: estado === "cerrada",

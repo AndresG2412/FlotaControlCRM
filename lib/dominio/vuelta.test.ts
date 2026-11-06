@@ -52,8 +52,8 @@ describe("vuelta", () => {
   });
 
   it("el admin edita hasta el cierre, cierra solo una finalizada y reabre una cerrada con motivo", () => {
-    expect(accionesAdmin("en_curso")).toEqual({ editar: true, reabrir: false, cerrar: false, reabrirCerrada: false });
-    expect(accionesAdmin("finalizada")).toEqual({ editar: true, reabrir: true, cerrar: true, reabrirCerrada: false });
-    expect(accionesAdmin("cerrada")).toEqual({ editar: false, reabrir: false, cerrar: false, reabrirCerrada: true });
+    expect(accionesAdmin("en_curso")).toEqual({ editar: true, finalizar: true, reabrir: false, cerrar: false, reabrirCerrada: false });
+    expect(accionesAdmin("finalizada")).toEqual({ editar: true, finalizar: false, reabrir: true, cerrar: true, reabrirCerrada: false });
+    expect(accionesAdmin("cerrada")).toEqual({ editar: false, finalizar: false, reabrir: false, cerrar: false, reabrirCerrada: true });
   });
 });

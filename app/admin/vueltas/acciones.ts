@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirRol } from "@/lib/auth/sesion";
+import { hoyEnBogota } from "@/lib/dominio/fechas";
 import { accionesAdmin, esEstadoVuelta } from "@/lib/dominio/vuelta";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import {
@@ -10,11 +11,13 @@ import {
   esquemaCorreccionPlanilla,
   esquemaDatosVuelta,
   esquemaIdVuelta,
+  esquemaIniciarVuelta,
   esquemaReabrirCerrada,
   type AjusteGastoFijo,
   type CierreVuelta,
   type CorreccionPlanilla,
   type DatosVuelta,
+  type IniciarVueltaEntrada,
   type ReabrirCerrada,
 } from "@/lib/validaciones/admin";
 import { esquemaAnulacion, esquemaPlanilla } from "@/lib/validaciones/registros";
@@ -162,6 +165,70 @@ export async function actualizarVuelta(entrada: DatosVuelta): Promise<Resultado>
   if (error || !data.length) return { error: "No se pudo guardar la vuelta" };
 
   revalidar(v.id);
+  return { error: null };
+}
+
+const AVISO_EN_CURSO = "Ya hay una vuelta en curso en esta buseta. Hay que finalizarla antes de iniciar otra.";
+
+/**
+ * El admin inicia la vuelta de hoy (Bogotá) a nombre de un conductor, que queda
+ * en el puesto Florencia como en la app. El conductor la ve al sincronizar y
+ * sigue registrando desde el celular. Solo una en curso por buseta.
+ */
+export async function iniciarVueltaAdmin(entrada: IniciarVueltaEntrada): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaIniciarVuelta.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const [{ data: conductor }, { data: buseta }] = await Promise.all([
+    supabase.from("perfiles").select("id").eq("id", datos.data.conductor_id).eq("rol", "conductor").eq("activo", true).maybeSingle(),
+    supabase.from("busetas").select("id").eq("activa", true).order("creado_en").limit(1).maybeSingle(),
+  ]);
+  if (!conductor) return { error: "Elige un conductor activo" };
+  if (!buseta) return { error: "No hay una buseta activa" };
+
+  const { data: enCurso } = await supabase
+    .from("vueltas").select("id").eq("buseta_id", buseta.id).eq("estado", "en_curso").maybeSingle();
+  if (enCurso) return { error: AVISO_EN_CURSO };
+
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("vueltas").insert({
+    id,
+    buseta_id: buseta.id,
+    tipo: "completa",
+    fecha_inicio: hoyEnBogota(),
+    conductor_florencia_id: conductor.id,
+    conductor_pitalito_id: null,
+    registrado_por: perfil.id, // la base lo vuelve a poner con auth.uid()
+  });
+  if (error?.code === "23505" && error.message.includes("vueltas_una_en_curso")) return { error: AVISO_EN_CURSO };
+  if (error) return { error: "No se pudo iniciar la vuelta" };
+
+  revalidar(id);
+  return { error: null, id };
+}
+
+/**
+ * El admin finaliza la vuelta en curso (como lo haría el conductor). Después se
+ * puede cerrar con el cuadre o reabrir si fue un error.
+ */
+export async function finalizarVuelta(entrada: { id: string }): Promise<Resultado> {
+  await exigirRol("admin");
+  const datos = esquemaIdVuelta.safeParse(entrada);
+  if (!datos.success) return { error: "Datos inválidos" };
+
+  const supabase = await crearClienteServidor();
+  const { data, error } = await supabase
+    .from("vueltas")
+    .update({ estado: "finalizada" })
+    .eq("id", datos.data.id)
+    .eq("estado", "en_curso")
+    .select("id");
+  if (error) return { error: "No se pudo finalizar la vuelta" };
+  if (!data.length) return { error: "Solo se puede finalizar una vuelta en curso" };
+
+  revalidar(datos.data.id);
   return { error: null };
 }
 
