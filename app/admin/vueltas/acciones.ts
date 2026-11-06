@@ -11,13 +11,11 @@ import {
   esquemaCorreccionPlanilla,
   esquemaDatosVuelta,
   esquemaIdVuelta,
-  esquemaIniciarVuelta,
   esquemaReabrirCerrada,
   type AjusteGastoFijo,
   type CierreVuelta,
   type CorreccionPlanilla,
   type DatosVuelta,
-  type IniciarVueltaEntrada,
   type ReabrirCerrada,
 } from "@/lib/validaciones/admin";
 import { esquemaAnulacion, esquemaPlanilla } from "@/lib/validaciones/registros";
@@ -171,21 +169,16 @@ export async function actualizarVuelta(entrada: DatosVuelta): Promise<Resultado>
 const AVISO_EN_CURSO = "Ya hay una vuelta en curso en esta buseta. Hay que finalizarla antes de iniciar otra.";
 
 /**
- * El admin inicia la vuelta de hoy (Bogotá) a nombre de un conductor, que queda
- * en el puesto Florencia como en la app. El conductor la ve al sincronizar y
- * sigue registrando desde el celular. Solo una en curso por buseta.
+ * El admin inicia la vuelta de hoy (Bogotá), sin elegir conductor: queda sin
+ * conductores asignados. Si un conductor la usa desde el celular, se une a ella;
+ * el admin también puede asignarlos desde el detalle. Solo una en curso por buseta.
  */
-export async function iniciarVueltaAdmin(entrada: IniciarVueltaEntrada): Promise<Resultado & { id?: string }> {
+export async function iniciarVueltaAdmin(): Promise<Resultado & { id?: string }> {
   const perfil = await exigirRol("admin");
-  const datos = esquemaIniciarVuelta.safeParse(entrada);
-  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
-
   const supabase = await crearClienteServidor();
-  const [{ data: conductor }, { data: buseta }] = await Promise.all([
-    supabase.from("perfiles").select("id").eq("id", datos.data.conductor_id).eq("rol", "conductor").eq("activo", true).maybeSingle(),
-    supabase.from("busetas").select("id").eq("activa", true).order("creado_en").limit(1).maybeSingle(),
-  ]);
-  if (!conductor) return { error: "Elige un conductor activo" };
+
+  const { data: buseta } = await supabase
+    .from("busetas").select("id").eq("activa", true).order("creado_en").limit(1).maybeSingle();
   if (!buseta) return { error: "No hay una buseta activa" };
 
   const { data: enCurso } = await supabase
@@ -198,7 +191,7 @@ export async function iniciarVueltaAdmin(entrada: IniciarVueltaEntrada): Promise
     buseta_id: buseta.id,
     tipo: "completa",
     fecha_inicio: hoyEnBogota(),
-    conductor_florencia_id: conductor.id,
+    conductor_florencia_id: null,
     conductor_pitalito_id: null,
     registrado_por: perfil.id, // la base lo vuelve a poner con auth.uid()
   });

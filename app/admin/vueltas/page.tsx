@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listarConductores, listarVueltas, vueltaEnCurso, type VueltaEnLista } from "@/lib/admin/vueltas";
+import { listarVueltas, vueltaEnCurso, type VueltaEnLista } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
 import { hoyEnBogota } from "@/lib/dominio/fechas";
@@ -26,7 +26,7 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
     estado: uno(params.estado) || undefined,
     tipo: uno(params.tipo) || undefined,
   });
-  const [vueltas, conductores, enCurso] = await Promise.all([listarVueltas(filtros), listarConductores(), vueltaEnCurso()]);
+  const [vueltas, enCurso] = await Promise.all([listarVueltas(filtros), vueltaEnCurso()]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -36,7 +36,6 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
       </div>
 
       <IniciarVuelta
-        conductores={conductores}
         enCurso={enCurso ? { id: enCurso.id, fecha: fechaCorta(enCurso.fecha_inicio) } : null}
       />
 
