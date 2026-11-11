@@ -430,6 +430,16 @@ export async function iniciarTrayectoAdmin(entrada: IniciarTrayectoAdmin): Promi
     .maybeSingle();
   if (existente) return { error: `El trayecto de ${datos.data.sentido} ya existe` };
 
+  if (datos.data.sentido === "regreso") {
+    const { data: ida } = await supabase
+      .from("trayectos")
+      .select("id")
+      .eq("vuelta_id", datos.data.vuelta_id)
+      .eq("sentido", "ida")
+      .maybeSingle();
+    if (!ida) return { error: "Primero hay que iniciar la ida" };
+  }
+
   const id = crypto.randomUUID();
   const hora = new Intl.DateTimeFormat("en-GB", {
     timeZone: "America/Bogota",

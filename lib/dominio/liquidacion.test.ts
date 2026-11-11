@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diferenciaCuadre, liquidar, type DatosVuelta, type GastoFijo } from "./liquidacion";
+import { diferenciaCuadre, ingresoDeTrayecto, liquidar, type DatosVuelta, type GastoFijo } from "./liquidacion";
 
 // Gastos fijos del sistema anterior: $845.000, todos pagados en ruta.
 const fijos: GastoFijo[] = [35000, 250000, 140000, 200000, 150000, 50000, 20000].map((valor) => ({
@@ -125,5 +125,24 @@ describe("liquidación", () => {
     // Ajustar un fijo en la vuelta (sin lavadas, −50.000) sube liquidación y efectivo esperado.
     const sinLavadas = liquidar({ ...datos, gastosFijos: fijos.filter((g) => g.valor !== 50000) });
     expect(sinLavadas).toMatchObject({ liquidacion: 775000, efectivoEsperado: 775000 });
+  });
+});
+
+describe("ingresoDeTrayecto", () => {
+  it("suma planillas, sobrante a la caja y encomiendas; lo que se quedó el conductor no", () => {
+    expect(
+      ingresoDeTrayecto({
+        netosPlanillas: [700000, 800000],
+        pasajerosPolilla: [
+          { montoCobrado: 80000, montoFacturado: 55000, destinoSobrante: "polilla" },
+          { montoCobrado: 30000, montoFacturado: 0, destinoSobrante: "conductor" },
+        ],
+        encomiendas: [15000],
+      }),
+    ).toBe(1540000);
+  });
+
+  it("sin registros es 0", () => {
+    expect(ingresoDeTrayecto({ netosPlanillas: [], pasajerosPolilla: [], encomiendas: [] })).toBe(0);
   });
 });

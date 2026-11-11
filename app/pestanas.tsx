@@ -10,6 +10,8 @@ export type Seccion = {
   icono: LucideIcon;
   /** Solo en la barra superior de escritorio (en el celular se llega por otro lado). */
   soloEscritorio?: boolean;
+  /** Se ve pero no lleva a ningún lado (sección en pausa). */
+  deshabilitada?: boolean;
 };
 
 const esActiva = (ruta: string, href: string, raiz: string) =>
@@ -20,16 +22,22 @@ export function PestanasSuperiores({ secciones, raiz }: { secciones: readonly Se
   const ruta = usePathname();
   return (
     <nav aria-label="Secciones" className="hidden items-center gap-1 lg:flex">
-      {secciones.map(({ href, titulo }) => (
-        <Link
-          key={href}
-          href={href}
-          aria-current={esActiva(ruta, href, raiz) ? "page" : undefined}
-          className="pestana rounded-full px-3.5 py-1.5 text-sm"
-        >
-          {titulo}
-        </Link>
-      ))}
+      {secciones.map(({ href, titulo, deshabilitada }) =>
+        deshabilitada ? (
+          <span key={href} aria-disabled="true" className="rounded-full px-3.5 py-1.5 text-sm opacity-45">
+            {titulo}
+          </span>
+        ) : (
+          <Link
+            key={href}
+            href={href}
+            aria-current={esActiva(ruta, href, raiz) ? "page" : undefined}
+            className="pestana rounded-full px-3.5 py-1.5 text-sm"
+          >
+            {titulo}
+          </Link>
+        ),
+      )}
     </nav>
   );
 }
@@ -58,17 +66,22 @@ export function PestanasInferiores({
         className="vidrio mx-auto grid max-w-md gap-0.5 rounded-[1.6rem] p-1.5"
         style={{ gridTemplateColumns: `repeat(${visibles.length}, minmax(0, 1fr))` }}
       >
-        {visibles.map(({ href, titulo, icono: Icono }) => (
-          <Link
-            key={href}
-            href={href}
-            aria-current={esActiva(ruta, href, raiz) ? "page" : undefined}
-            className="pestana flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[0.68rem] leading-tight tracking-tight"
-          >
-            <Icono className="size-5" aria-hidden />
-            <span className="max-w-full truncate">{titulo}</span>
-          </Link>
-        ))}
+        {visibles.map(({ href, titulo, icono: Icono, deshabilitada }) => {
+          const clase = "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[0.75rem] leading-tight tracking-tight";
+          const contenido = (
+            <>
+              <Icono className="size-5" aria-hidden />
+              <span className="max-w-full truncate">{titulo}</span>
+            </>
+          );
+          return deshabilitada ? (
+            <span key={href} aria-disabled="true" className={`${clase} opacity-40`}>{contenido}</span>
+          ) : (
+            <Link key={href} href={href} aria-current={esActiva(ruta, href, raiz) ? "page" : undefined} className={`pestana ${clase}`}>
+              {contenido}
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

@@ -23,13 +23,10 @@ export default async function LayoutAdmin({ children }: LayoutProps<"/admin">) {
           <NavegacionAdminSuperior />
           <div className="flex items-center gap-1">
             <span className="mr-1 hidden text-sm text-texto-suave xl:inline">{perfil.nombre}</span>
-            <Link
-              href="/admin/configuracion"
-              aria-label="Configuración"
-              className="pestana grid size-10 place-items-center rounded-full lg:hidden"
-            >
+            {/* Configuración en pausa por ahora. */}
+            <span aria-label="Configuración (no disponible)" aria-disabled="true" className="grid size-10 place-items-center rounded-full opacity-40 lg:hidden">
               <Settings className="size-5" aria-hidden />
-            </Link>
+            </span>
             <BotonSalir />
           </div>
         </div>

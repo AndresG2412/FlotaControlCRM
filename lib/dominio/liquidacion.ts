@@ -51,6 +51,11 @@ const EN_CERO: Liquidacion = {
   efectivoEsperado: 0,
 };
 
+/** Lo registrado hasta el momento en un trayecto. Ida + regreso = ingreso real de la vuelta. */
+export function ingresoDeTrayecto(t: Pick<DatosVuelta, "netosPlanillas" | "pasajerosPolilla" | "encomiendas">): Pesos {
+  return sumar(t.netosPlanillas) + sumar(t.pasajerosPolilla.map((p) => repartoPasajero(p).polilla)) + sumar(t.encomiendas);
+}
+
 export function liquidar(v: DatosVuelta): Liquidacion {
   // Una varada solo se registra: todo en 0, no se liquida.
   if (v.tipo === "varada") return EN_CERO;

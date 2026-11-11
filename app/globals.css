@@ -9,24 +9,24 @@
  */
 
 :root {
-  /* Paleta "Azul estratégico": #01DDFD cian, #264D9C azul, #10213F marino, #101115 casi negro. */
-  --fondo: #e3e9f2;
-  --superficie: #e3e9f2;
-  --campo: #e9eef6;
-  --texto: #10213f;
-  --texto-suave: #4a5a78;
-  --borde: #c7d1e0;
-  --marca: #264d9c;
-  --marca-clara: #2f63c4;
-  --marca-profunda: #264d9c;
+  /* Paleta neutra: grises y texto de alto contraste; el color queda para acciones y resultados. */
+  --fondo: #eceef1;
+  --superficie: #eceef1;
+  --campo: #f3f4f6;
+  --texto: #15171a;
+  --texto-suave: #3d434c;
+  --borde: #c9cdd3;
+  --marca: #1d4ed8;
+  --marca-clara: #2563eb;
+  --marca-profunda: #1d4ed8;
   --marca-texto: #ffffff;
   --ganancia: #166534;
   --perdida: #b91c1c;
   --aviso: #92400e;
 
   /* Luz arriba-izquierda: sombra clara arriba, oscura abajo. */
-  --luz: rgba(255, 255, 255, 0.95);
-  --sombra: rgba(140, 158, 190, 0.55);
+  --luz: rgba(255, 255, 255, 0.9);
+  --sombra: rgba(120, 125, 135, 0.42);
 
   --neu-alto: 7px 7px 16px var(--sombra), -7px -7px 16px var(--luz);
   --neu-medio: 4px 4px 10px var(--sombra), -4px -4px 10px var(--luz);
@@ -34,43 +34,43 @@
   --neu-hundido: inset 3px 3px 7px var(--sombra), inset -3px -3px 7px var(--luz);
   --neu-hundido-suave: inset 2px 2px 5px var(--sombra), inset -2px -2px 5px var(--luz);
 
-  --vidrio: rgba(238, 243, 250, 0.6);
+  --vidrio: rgba(245, 246, 248, 0.72);
   --vidrio-borde: rgba(255, 255, 255, 0.7);
-  --vidrio-sombra: 0 10px 30px -8px rgba(16, 33, 63, 0.22);
+  --vidrio-sombra: 0 10px 30px -8px rgba(20, 22, 26, 0.22);
   --vidrio-brillo: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 
-  --halo-1: rgba(1, 221, 253, 0.16);
-  --halo-2: rgba(38, 77, 156, 0.14);
+  --halo-1: transparent;
+  --halo-2: transparent;
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #10213f;
-    --superficie: #10213f;
-    --campo: #0d1b35;
-    --texto: #e6eefb;
-    --texto-suave: #93a5c6;
-    --borde: #24385e;
-    --marca: #01ddfd;
-    --marca-clara: #01ddfd;
-    --marca-profunda: #0a9fd8;
-    --marca-texto: #101115;
+    --fondo: #1a1c20;
+    --superficie: #1a1c20;
+    --campo: #141518;
+    --texto: #f5f6f7;
+    --texto-suave: #d0d4da;
+    --borde: #3a3e46;
+    --marca: #8fd3f0;
+    --marca-clara: #38bdf8;
+    --marca-profunda: #0284c7;
+    --marca-texto: #07131c;
     --ganancia: #4ade80;
     --perdida: #f87171;
     --aviso: #fbbf24;
 
-    --luz: rgba(44, 76, 136, 0.45);
-    --sombra: rgba(4, 9, 20, 0.8);
+    --luz: rgba(255, 255, 255, 0.055);
+    --sombra: rgba(0, 0, 0, 0.55);
 
-    --vidrio: rgba(16, 17, 21, 0.55);
+    --vidrio: rgba(22, 23, 26, 0.72);
     --vidrio-borde: rgba(255, 255, 255, 0.08);
     --vidrio-sombra: 0 12px 34px -8px rgba(0, 0, 0, 0.6);
     --vidrio-brillo: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-    --halo-1: rgba(1, 221, 253, 0.12);
-    --halo-2: rgba(38, 77, 156, 0.3);
+    --halo-1: transparent;
+    --halo-2: transparent;
 
     color-scheme: dark;
   }
@@ -90,10 +90,21 @@
   --font-sans: var(--font-geist-sans);
 }
 
+/* Letra grande y legible en toda la app: Tailwind toma de aquí text-xs, text-sm… */
+@theme {
+  --text-xs: 0.9375rem;
+  --text-sm: 1rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+}
+
 @layer base {
   body {
     background: var(--fondo);
     color: var(--texto);
+    font-size: var(--text-base);
+    font-weight: 500;
+    line-height: 1.45;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -399,6 +410,36 @@
   }
 }
 
+/* Botones y campos estándar con altura cómoda para el dedo. */
+:is(.neu-boton, .neu-boton-marca, .neu-boton-peligro, .neu-campo).h-10 {
+  height: 2.875rem;
+}
+
+/* Acordeón: la fila entera se toca para abrir; a la derecha, el dato que resume. */
+.acordeon > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1.25rem;
+  list-style: none;
+}
+.acordeon > summary::-webkit-details-marker {
+  display: none;
+}
+.acordeon > summary:focus-visible {
+  outline: 2px solid var(--marca);
+  outline-offset: -2px;
+}
+.acordeon-flecha {
+  flex-shrink: 0;
+  transition: transform 180ms ease-out;
+}
+.acordeon[open] > summary .acordeon-flecha {
+  transform: rotate(180deg);
+}
+
 /* Montos con dígitos de ancho fijo para que las columnas cuadren. */
 .monto {
   font-variant-numeric: tabular-nums;
@@ -414,6 +455,7 @@
   .neu-boton,
   .neu-opcion,
   .neu-boton-marca,
+  .acordeon-flecha,
   .pestana {
     transition: box-shadow 120ms linear, color 120ms linear, opacity 120ms linear;
   }

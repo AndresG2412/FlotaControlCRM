@@ -2,9 +2,9 @@ import Link from "next/link";
 import { listarVueltas, vueltaEnCurso, type VueltaEnLista } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
-import { hoyEnBogota } from "@/lib/dominio/fechas";
+import { fechaNumerica, hoyEnBogota } from "@/lib/dominio/fechas";
 import { esquemaFiltrosVueltas } from "@/lib/validaciones/admin";
-import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "./etiquetas";
+import { ETIQUETA_ESTADO, ETIQUETA_TIPO } from "./etiquetas";
 import { IniciarVuelta } from "./iniciar";
 
 export const metadata = { title: "Vueltas" };
@@ -36,7 +36,7 @@ export default async function ListaVueltas({ searchParams }: PageProps<"/admin/v
       </div>
 
       <IniciarVuelta
-        enCurso={enCurso ? { id: enCurso.id, fecha: fechaCorta(enCurso.fecha_inicio) } : null}
+        enCurso={enCurso ? { id: enCurso.id, fecha: fechaNumerica(enCurso.fecha_inicio) } : null}
       />
 
       <form method="get" className="flex flex-wrap items-end gap-2 neu-tarjeta p-3">
@@ -91,9 +91,9 @@ function FilaVuelta({ vuelta: v }: { vuelta: VueltaEnLista }) {
         className="flex h-full flex-col gap-1 neu-tarjeta p-4 neu-enlace"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{fechaCorta(v.fecha_inicio)}</span>
+          <span className="text-lg font-bold">{fechaNumerica(v.fecha_inicio)}</span>
           {v.placa && <span className="text-sm text-texto-suave">{v.placa}</span>}
-          <span className="neu-chip px-2 text-xs">{ETIQUETA_ESTADO[v.estado]}</span>
+          <span className="neu-chip px-3 text-sm font-semibold">{ETIQUETA_ESTADO[v.estado]}</span>
           {v.tipo === "varada" && (
             <span className="rounded-full bg-aviso px-2 text-xs font-semibold text-superficie">Varada</span>
           )}

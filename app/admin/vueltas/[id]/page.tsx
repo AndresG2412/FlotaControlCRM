@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -15,11 +16,12 @@ import {
 } from "@/lib/admin/vueltas";
 import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
-import { formatearFechaHora } from "@/lib/dominio/fechas";
+import { fechaNumerica, formatearFechaHora } from "@/lib/dominio/fechas";
+import { ingresoDeTrayecto } from "@/lib/dominio/liquidacion";
 import type { TerminalConPlanilla } from "@/lib/dominio/planillas";
 import { buscarTramo, TERMINALES, type Sentido } from "@/lib/dominio/ruta";
 import { accionesAdmin } from "@/lib/dominio/vuelta";
-import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "../etiquetas";
+import { ETIQUETA_ESTADO, ETIQUETA_TIPO } from "../etiquetas";
 import { FinalizarVuelta } from "../finalizar";
 import {
   AccionesPlanilla,
@@ -51,36 +53,75 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
   const permitido = accionesAdmin(vuelta.estado);
   const trayectoId = vuelta.regreso?.id ?? vuelta.ida?.id ?? null;
 
-  return (
-    <section className="flex flex-col gap-6">
-      <Link href="/admin/vueltas" className="text-sm text-marca underline">← Vueltas</Link>
+  const sentidoActual = vuelta.estado === "en_curso" ? (vuelta.regreso ? "regreso" : "ida") : null;
+  const trayectos = [
+    { sentido: "ida" as const, trayecto: vuelta.ida },
+    { sentido: "regreso" as const, trayecto: vuelta.regreso },
+  ];
 
-      <div className={tarjeta}>
+  return (
+    <section className="flex flex-col gap-5">
+      <Link href="/admin/vueltas" className="w-fit text-marca underline">← Vueltas</Link>
+
+      <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="titulo-pagina">Vuelta del {fechaCorta(vuelta.fecha_inicio)}</h1>
-          <span className="neu-chip px-2 text-xs">{ETIQUETA_ESTADO[vuelta.estado]}</span>
+          <h1 className="titulo-pagina">Vuelta del {fechaNumerica(vuelta.fecha_inicio)}</h1>
+          <span className="neu-chip px-3 text-sm font-semibold">{ETIQUETA_ESTADO[vuelta.estado]}</span>
           {vuelta.tipo === "varada" && (
-            <span className="rounded-full bg-aviso px-2 text-xs font-semibold text-superficie">Varada</span>
+            <span className="rounded-full bg-aviso px-3 text-sm font-bold text-superficie">Varada</span>
           )}
         </div>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm @xl:grid-cols-2 @4xl:grid-cols-3">
-          <Dato termino="Buseta" valor={vuelta.placa ?? "—"} />
-          <Dato termino="Tipo" valor={ETIQUETA_TIPO[vuelta.tipo]} />
-          <Dato termino="Conductor Florencia" valor={vuelta.conductorFlorencia ?? "Sin asignar"} />
-          <Dato termino="Conductor Pitalito" valor={vuelta.conductorPitalito ?? "Sin asignar"} />
-          <Dato termino="Creada por" valor={`${vuelta.registradoPor} · ${formatearFechaHora(vuelta.ocurrido_en)}`} />
-          {vuelta.actualizado_en && vuelta.actualizadoPor && (
-            <Dato termino="Última modificación" valor={`${vuelta.actualizadoPor} · ${formatearFechaHora(vuelta.actualizado_en)}`} />
-          )}
-        </dl>
-        {vuelta.tipo === "varada" && (
-          <p className="text-sm text-aviso">Varada: se registra para el historial y queda toda en $0 (sin gastos ni ganancias).</p>
-        )}
-        {vuelta.notas && <p className="text-sm text-texto-suave">Notas: {vuelta.notas}</p>}
-        {vuelta.estado === "cerrada" && <p className="text-sm text-texto-suave">Vuelta cerrada: solo lectura.</p>}
+        {vuelta.tipo === "varada" && <p className="text-aviso">Varada: queda para el historial, toda en $0.</p>}
+        {vuelta.estado === "cerrada" && <p className="text-texto-suave">Vuelta cerrada: solo lectura.</p>}
+      </header>
 
-        {/* Botones en fila; el formulario que se abre ocupa toda la fila. */}
-        <div className="flex flex-wrap items-start gap-3 [&>form]:basis-full [&>div:has(>.neu-pozo)]:basis-full">
+      {/* 1. Lo que se registra: ida y regreso primero. */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        {trayectos.map(({ sentido, trayecto }) =>
+          trayecto ? (
+            <Trayecto key={sentido} trayecto={trayecto} varada={vuelta.tipo === "varada"} editable={permitido.editar} uid={perfil.id} abierto={sentido === sentidoActual} />
+          ) : sentido === "regreso" && !vuelta.ida && vuelta.faltan.includes(sentido) ? (
+            <div key={sentido} className={`${tarjeta} opacity-70`}>
+              <h2 className="text-lg font-bold">Regreso</h2>
+              <p className="text-texto-suave">Primero hay que iniciar la ida.</p>
+              <button type="button" disabled className="h-10 w-fit neu-boton px-4 text-sm">Iniciar regreso (Cali → Florencia)</button>
+            </div>
+          ) : vuelta.faltan.includes(sentido) ? (
+            <div key={sentido} className={tarjeta}>
+              <h2 className="text-lg font-bold">{sentido === "ida" ? "Ida" : "Regreso"}</h2>
+              <p className="text-texto-suave">Todavía no se ha registrado.</p>
+              {permitido.editar && <IniciarTrayecto vueltaId={vuelta.id} sentido={sentido} />}
+            </div>
+          ) : null,
+        )}
+      </div>
+
+      {/* 2. El dinero, resumido: se abre solo lo que se quiera revisar. */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
+        {vuelta.tipo === "completa" && (
+          <GastosFijos fijos={vuelta.gastosFijos} total={vuelta.dinero?.gastosFijos ?? null} editable={permitido.editar} />
+        )}
+        <GastosVariables
+          gastos={vuelta.gastosVariables}
+          total={vuelta.dinero?.gastosVariables ?? null}
+          vueltaId={vuelta.id}
+          trayectoId={trayectoId}
+          uid={perfil.id}
+          editable={permitido.editar}
+          varada={vuelta.tipo === "varada"}
+        />
+        <Acordeon titulo="Datos de la vuelta" resumen={vuelta.placa ?? undefined}>
+          <dl className="flex flex-col gap-1">
+            <Dato termino="Tipo" valor={ETIQUETA_TIPO[vuelta.tipo]} />
+            <Dato termino="Conductor Florencia" valor={vuelta.conductorFlorencia ?? "Sin asignar"} />
+            <Dato termino="Conductor Pitalito" valor={vuelta.conductorPitalito ?? "Sin asignar"} />
+            <Dato termino="Creada por" valor={`${vuelta.registradoPor} · ${formatearFechaHora(vuelta.ocurrido_en)}`} />
+            {vuelta.actualizado_en && vuelta.actualizadoPor && (
+              <Dato termino="Última modificación" valor={`${vuelta.actualizadoPor} · ${formatearFechaHora(vuelta.actualizado_en)}`} />
+            )}
+          </dl>
+          {vuelta.notas && <p>Notas: {vuelta.notas}</p>}
           {permitido.editar && (
             <EditarVuelta
               vuelta={{
@@ -92,69 +133,104 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
               conductores={conductores}
             />
           )}
-          {permitido.finalizar && <FinalizarVuelta id={vuelta.id} />}
-          {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
-          {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
-        </div>
+        </Acordeon>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Ingresos ingresos={vuelta.ingresos} varada={vuelta.tipo === "varada"} />
-        <Liquidacion dinero={vuelta.dinero} varada={vuelta.tipo === "varada"} puedeCerrar={permitido.cerrar} id={vuelta.id} />
-        {vuelta.tipo === "completa" && (
-          <GastosFijos fijos={vuelta.gastosFijos} editable={permitido.editar} />
-        )}
-        <GastosVariables
-          gastos={vuelta.gastosVariables}
-          vueltaId={vuelta.id}
-          trayectoId={trayectoId}
-          uid={perfil.id}
-          editable={permitido.editar}
-          varada={vuelta.tipo === "varada"}
-        />
-      </div>
+      {/* 3. El resultado y las acciones que terminan la vuelta, al final. */}
+      <Liquidacion
+        dinero={vuelta.dinero}
+        varada={vuelta.tipo === "varada"}
+        enCurso={vuelta.estado === "en_curso"}
+        puedeCerrar={permitido.cerrar}
+        id={vuelta.id}
+      >
+        {permitido.finalizar && <FinalizarVuelta id={vuelta.id} />}
+        {permitido.reabrir && <ReabrirVuelta id={vuelta.id} />}
+        {permitido.reabrirCerrada && <ReabrirCerrada id={vuelta.id} />}
+      </Liquidacion>
       <CierresReemplazados cierres={vuelta.cierresReemplazados} />
-
-      {vuelta.faltan.map((sentido) => (
-        <div key={sentido} className={`${tarjeta} flex flex-col gap-2`}>
-          <p className="text-aviso">
-            {sentido === "ida" ? "La ida" : "El regreso"} no se ha registrado.
-          </p>
-          {permitido.editar && (
-            <IniciarTrayecto vueltaId={vuelta.id} sentido={sentido} />
-          )}
-        </div>
-      ))}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        {vuelta.ida && <Trayecto trayecto={vuelta.ida} editable={permitido.editar} uid={perfil.id} />}
-        {vuelta.regreso && <Trayecto trayecto={vuelta.regreso} editable={permitido.editar} uid={perfil.id} />}
-      </div>
     </section>
+  );
+}
+
+/** Tarjeta plegable: la fila entera abre y cierra; a la derecha va el dato que la resume. */
+function Acordeon({
+  titulo,
+  subtitulo,
+  resumen,
+  abierto = false,
+  children,
+}: {
+  titulo: string;
+  subtitulo?: React.ReactNode;
+  resumen?: React.ReactNode;
+  abierto?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="acordeon neu-tarjeta" open={abierto}>
+      <summary>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-lg font-bold">{titulo}</span>
+          {subtitulo && <span className="text-sm text-texto-suave">{subtitulo}</span>}
+        </span>
+        {resumen !== undefined && <span className="monto shrink-0 text-right text-lg font-bold">{resumen}</span>}
+        <ChevronDown className="acordeon-flecha size-6" aria-hidden />
+      </summary>
+      <div className="flex flex-col gap-3 px-4 pb-4">{children}</div>
+    </details>
   );
 }
 
 function Dato({ termino, valor }: { termino: string; valor: string }) {
   return (
-    <div className="flex gap-1">
-      <dt className="shrink-0 text-texto-suave">{termino}:</dt>
-      <dd>{valor}</dd>
+    <div className="flex flex-col">
+      <dt className="text-sm text-texto-suave">{termino}</dt>
+      <dd className="font-semibold">{valor}</dd>
     </div>
   );
 }
 
-function Trayecto({ trayecto: t, editable, uid }: { trayecto: TrayectoDetalle; editable: boolean; uid: string }) {
+function Trayecto({
+  trayecto: t,
+  varada,
+  editable,
+  uid,
+  abierto,
+}: {
+  trayecto: TrayectoDetalle;
+  varada: boolean;
+  editable: boolean;
+  uid: string;
+  abierto: boolean;
+}) {
+  const pendientes = t.terminales.filter((x) => x.estado === "pendiente").length;
+  const total = ingresoDeTrayecto({
+    netosPlanillas: t.terminales.flatMap((x) => (x.planilla?.neto != null ? [x.planilla.neto] : [])),
+    pasajerosPolilla: t.pasajeros
+      .filter((p) => p.estado === "activo")
+      .map((p) => ({ montoCobrado: p.monto_cobrado, montoFacturado: p.monto_facturado, destinoSobrante: p.destino_sobrante })),
+    encomiendas: t.encomiendas.filter((e) => e.estado === "activa").map((e) => e.monto),
+  });
   return (
-    <div className={tarjeta}>
-      <div className="flex flex-col gap-0.5">
-        <h2 className="text-lg font-semibold">
-          {t.sentido === "ida" ? "Ida" : "Regreso"} · {fechaCorta(t.fecha)}
-          {t.hora_salida && ` · ${t.hora_salida.slice(0, 5)}`}
-        </h2>
-        <span className="text-xs text-texto-suave">
-          Abierto por {t.registradoPor} · {formatearFechaHora(t.ocurrido_en)}
-        </span>
-        {t.terminal_fin && <span className="text-sm text-aviso">Terminó en {TERMINALES[t.terminal_fin]} (varada)</span>}
-      </div>
+    <Acordeon
+      titulo={t.sentido === "ida" ? "Ida" : "Regreso"}
+      subtitulo={
+        <>
+          {fechaNumerica(t.fecha)}
+          {t.hora_salida && ` · ${t.hora_salida.slice(0, 5)}`} ·{" "}
+          {pendientes > 0 ? (
+            <span className="font-semibold text-aviso">Faltan {pendientes}</span>
+          ) : (
+            <span className="font-semibold text-ganancia">Completo</span>
+          )}
+        </>
+      }
+      // Una varada queda toda en $0: no se muestra un total que no va a contar.
+      resumen={varada ? undefined : formatearPesos(total)}
+      abierto={abierto}
+    >
+      {t.terminal_fin && <p className="text-aviso">Terminó en {TERMINALES[t.terminal_fin]} (varada)</p>}
 
       <ul className="flex flex-col gap-2">
         {t.terminales.map((terminal) => (
@@ -186,7 +262,7 @@ function Trayecto({ trayecto: t, editable, uid }: { trayecto: TrayectoDetalle; e
           </ul>
         </details>
       )}
-    </div>
+    </Acordeon>
   );
 }
 
@@ -213,11 +289,11 @@ function Terminal({
   return (
     <li className="flex flex-col gap-1 neu-pozo p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-medium">{TERMINALES[terminal.codigo]}</span>
-        {terminal.estado === "pendiente" && <span className="text-sm text-aviso">Falta registrar</span>}
+        <span className="text-lg font-bold">{TERMINALES[terminal.codigo]}</span>
+        {terminal.estado === "pendiente" && <span className="font-semibold text-aviso">Falta registrar</span>}
         {terminal.estado === "sin_planilla" && <span className="text-sm text-texto-suave">Sin planilla</span>}
         {terminal.estado === "registrada" && p && (
-          <span className="monto text-sm font-semibold">{formatearPesos(p.neto ?? 0)}</span>
+          <span className="monto text-lg font-bold">{formatearPesos(p.neto ?? 0)}</span>
         )}
       </div>
 
@@ -251,10 +327,15 @@ function Terminal({
   );
 }
 
+/** Sin señal puede llegar mucho después: solo entonces vale la pena decir cuándo llegó. */
+const llegoDespues = (ocurrido: string, sincronizado: string) =>
+  Math.abs(new Date(sincronizado).getTime() - new Date(ocurrido).getTime()) > 5 * 60_000;
+
 function Autoria({ planilla: p }: { planilla: PlanillaDetalle }) {
   return (
     <span className="text-xs text-texto-suave">
-      Registró {p.registradoPor} · {formatearFechaHora(p.ocurrido_en)} (llegó {formatearFechaHora(p.sincronizado_en)})
+      Registró {p.registradoPor} · {formatearFechaHora(p.ocurrido_en)}
+      {llegoDespues(p.ocurrido_en, p.sincronizado_en) && ` · llegó ${formatearFechaHora(p.sincronizado_en)}`}
       {p.horaSospechosa && <strong className="text-aviso"> · revisar hora</strong>}
       {p.actualizadoPor && p.actualizado_en && ` · Corrigió ${p.actualizadoPor} · ${formatearFechaHora(p.actualizado_en)}`}
     </span>
@@ -263,27 +344,26 @@ function Autoria({ planilla: p }: { planilla: PlanillaDetalle }) {
 
 function Ingresos({ ingresos, varada }: { ingresos: IngresosVuelta | null; varada: boolean }) {
   if (!ingresos) return null;
-  const fila = (termino: string, valor: number, fuerte = false) => (
+  const fila = (termino: string, valor: number) => (
     <div className="flex justify-between gap-2">
-      <dt className={fuerte ? "font-semibold" : "text-texto-suave"}>{termino}</dt>
-      <dd className={`monto ${fuerte ? "font-semibold" : ""}`}>{formatearPesos(valor)}</dd>
+      <dt>{termino}</dt>
+      <dd className="monto font-semibold">{formatearPesos(valor)}</dd>
     </div>
   );
   return (
-    <div className={tarjeta}>
-      <h2 className="text-lg font-semibold">Ingresos</h2>
-      {varada && <p className="text-sm text-aviso">Varada: no se liquida, todo queda en $0.</p>}
-      <dl className="flex flex-col gap-1 text-sm">
-        {fila("Planillas (neto)", ingresos.planillas)}
-        {fila("Polilla (sobrantes a la caja)", ingresos.polilla)}
+    <Acordeon titulo="Ingresos" resumen={formatearPesos(ingresos.ingresoReal)}>
+      {varada && <p className="text-aviso">Varada: no se liquida, todo queda en $0.</p>}
+      <dl className="flex flex-col gap-2">
+        {fila("Planillas", ingresos.planillas)}
+        {fila("Polilla", ingresos.polilla)}
         {fila("Encomiendas", ingresos.encomiendas)}
-        {fila("Ingreso real", ingresos.ingresoReal, true)}
       </dl>
-      <p className="monto text-sm">
-        Se quedó el conductor: <strong>{formatearPesos(ingresos.quedoConductor)}</strong>{" "}
-        <span className="text-texto-suave">(no suma al ingreso)</span>
-      </p>
-    </div>
+      {ingresos.quedoConductor > 0 && (
+        <p className="monto text-texto-suave">
+          Se quedó el conductor: <strong>{formatearPesos(ingresos.quedoConductor)}</strong> (no suma al ingreso)
+        </p>
+      )}
+    </Acordeon>
   );
 }
 
@@ -404,93 +484,101 @@ function AutoriaRegistro({
 function Liquidacion({
   dinero,
   varada,
+  enCurso,
   puedeCerrar,
   id,
+  children,
 }: {
   dinero: ResumenDinero | null;
   varada: boolean;
+  enCurso: boolean;
   puedeCerrar: boolean;
   id: string;
+  children: React.ReactNode;
 }) {
-  if (!dinero) return null;
-  if (varada) {
+  const acciones = <div className="flex flex-wrap items-start gap-3 [&>div:has(>.neu-pozo)]:basis-full">{children}</div>;
+  if (!dinero || varada) {
     return (
       <div className={tarjeta}>
-        <h2 className="text-lg font-semibold">Liquidación</h2>
-        <p className="text-sm text-aviso">Varada: no se liquida. Todo queda en $0.</p>
+        <h2 className="text-xl font-bold">Liquidación</h2>
+        {varada && <p className="text-aviso">Varada: no se liquida. Todo queda en $0.</p>}
         {puedeCerrar && <CerrarVuelta id={id} efectivoEsperado={0} />}
+        {acciones}
       </div>
     );
   }
   const fila = (termino: string, valor: number, clase = "") => (
-    <div className="flex justify-between gap-2">
-      <dt className="text-texto-suave">{termino}</dt>
-      <dd className={`monto ${clase}`}>{formatearPesos(valor)}</dd>
+    <div className={`flex justify-between gap-2 ${clase}`}>
+      <dt>{termino}</dt>
+      <dd className="monto font-semibold">{formatearPesos(valor)}</dd>
     </div>
   );
   const gana = dinero.liquidacion >= 0;
   const dif = dinero.diferenciaCuadre;
   return (
-    <div className={tarjeta}>
-      <h2 className="text-lg font-semibold">Liquidación</h2>
-      <dl className="flex flex-col gap-1 text-sm">
-        {fila("Ingreso real", dinero.ingresoReal)}
-        {fila("Gastos fijos", dinero.gastosFijos)}
-        {fila("Gastos variables (ACPM, ligas, otros)", dinero.gastosVariables)}
-        {fila("Gastos mínimos", dinero.gastosMinimos)}
-        <div className="flex justify-between gap-2 border-t border-borde pt-1 font-semibold">
-          <dt>{gana ? "Ganancia" : "Pérdida"}</dt>
-          <dd className={`monto ${gana ? "text-ganancia" : "text-perdida"}`}>{formatearPesos(Math.abs(dinero.liquidacion))}</dd>
-        </div>
-      </dl>
+    <div className={`${tarjeta} gap-4`}>
+      <h2 className="text-xl font-bold">Liquidación</h2>
+      <div className="grid gap-5 @3xl:grid-cols-2">
+        <dl className="flex flex-col gap-2">
+          {fila("Ingreso real", dinero.ingresoReal)}
+          {fila("Gastos fijos", dinero.gastosFijos)}
+          {fila("Gastos variables", dinero.gastosVariables)}
+          {fila("Total gastos", dinero.gastosMinimos, "border-t border-borde pt-2")}
+        </dl>
+        <dl className="flex flex-col gap-2">
+          {fila("Efectivo esperado", dinero.efectivoEsperado)}
+          {dinero.efectivoEntregado !== null && fila("Efectivo entregado", dinero.efectivoEntregado)}
+          {dif !== null && (
+            <div className="flex justify-between gap-2 font-bold">
+              <dt>Diferencia</dt>
+              <dd className={`monto ${dif < 0 ? "text-perdida" : dif > 0 ? "text-aviso" : "text-ganancia"}`}>
+                {dif < 0 ? `Faltan ${formatearPesos(-dif)}` : dif > 0 ? `Sobran ${formatearPesos(dif)}` : "Cuadra"}
+              </dd>
+            </div>
+          )}
+        </dl>
+      </div>
 
-      <h3 className="mt-2 font-semibold">Cuadre de caja</h3>
-      <dl className="flex flex-col gap-1 text-sm">
-        {fila("Efectivo esperado", dinero.efectivoEsperado)}
-        {dinero.efectivoEntregado !== null && fila("Efectivo entregado", dinero.efectivoEntregado)}
-        {dif !== null && (
-          <div className="flex justify-between gap-2 font-semibold">
-            <dt>Diferencia</dt>
-            <dd className={`monto ${dif < 0 ? "text-perdida" : dif > 0 ? "text-aviso" : "text-ganancia"}`}>
-              {dif < 0 ? `Faltan ${formatearPesos(-dif)}` : dif > 0 ? `Sobran ${formatearPesos(dif)}` : "Cuadra"}
-            </dd>
-          </div>
-        )}
-      </dl>
-      {dinero.cerradoEn && <p className="text-xs text-texto-suave">Cerrada el {formatearFechaHora(dinero.cerradoEn)}</p>}
+      <div className="flex flex-col neu-pozo p-4">
+        <span className="font-semibold">{gana ? "Ganancia" : "Pérdida"}</span>
+        <span className={`monto text-4xl font-bold ${gana ? "text-ganancia" : "text-perdida"}`}>
+          {formatearPesos(Math.abs(dinero.liquidacion))}
+        </span>
+        {enCurso && <span className="text-sm text-texto-suave">La vuelta sigue en curso: este valor puede cambiar.</span>}
+      </div>
+
+      {dinero.cerradoEn && <p className="text-texto-suave">Cerrada el {formatearFechaHora(dinero.cerradoEn)}</p>}
       {puedeCerrar && <CerrarVuelta id={id} efectivoEsperado={dinero.efectivoEsperado} />}
+      {acciones}
     </div>
   );
 }
 
-function GastosFijos({ fijos, editable }: { fijos: GastoFijoVuelta[]; editable: boolean }) {
+function GastosFijos({ fijos, total, editable }: { fijos: GastoFijoVuelta[]; total: number | null; editable: boolean }) {
   return (
-    <div className={tarjeta}>
-      <h2 className="text-lg font-semibold">Gastos fijos de la vuelta</h2>
+    <Acordeon titulo="Gastos fijos" resumen={total !== null ? formatearPesos(total) : undefined}>
       {fijos.length === 0 ? (
-        <p className="text-sm text-texto-suave">Esta vuelta no tiene gastos fijos cargados.</p>
+        <p className="text-texto-suave">Esta vuelta no tiene gastos fijos cargados.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col divide-y divide-borde">
           {fijos.map((f) => (
-            <li key={f.id} className="flex flex-col gap-1 neu-pozo p-3">
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium">
-                  {f.concepto}
-                  {!f.sePagaEnRuta && <span className="text-texto-suave"> · lo paga el dueño</span>}
-                </span>
-                <span className="monto">{formatearPesos(f.valor)}</span>
-              </div>
+            <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 [&>form]:basis-full">
+              <span className="min-w-0 flex-1">
+                {f.concepto}
+                {!f.sePagaEnRuta && <span className="text-texto-suave"> · lo paga el dueño</span>}
+              </span>
+              <span className="monto font-semibold">{formatearPesos(f.valor)}</span>
+              {editable && <AjustarGastoFijo id={f.id} concepto={f.concepto} valor={f.valor} />}
               {f.actualizado_en && f.actualizadoPor && (
-                <span className="text-xs text-texto-suave">
+                <span className="basis-full text-xs text-texto-suave">
                   Ajustado por {f.actualizadoPor} · {formatearFechaHora(f.actualizado_en)}
                 </span>
               )}
-              {editable && <AjustarGastoFijo id={f.id} concepto={f.concepto} valor={f.valor} />}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Acordeon>
   );
 }
 
@@ -509,6 +597,7 @@ function detalleGasto(g: GastoVariableDetalle): string {
 
 function GastosVariables({
   gastos,
+  total,
   vueltaId,
   trayectoId,
   uid,
@@ -516,6 +605,7 @@ function GastosVariables({
   varada,
 }: {
   gastos: GastoVariableDetalle[];
+  total: number | null;
   vueltaId: string;
   trayectoId: string | null;
   uid: string;
@@ -525,8 +615,10 @@ function GastosVariables({
   const activos = gastos.filter((g) => g.estado === "activo");
   const eliminados = gastos.filter((g) => g.estado === "anulado");
   return (
-    <div className={tarjeta}>
-      <h2 className="text-lg font-semibold">Gastos variables</h2>
+    <Acordeon
+      titulo="Gastos variables"
+      resumen={total !== null ? formatearPesos(total) : undefined}
+    >
       {editable && (
         <GastosVariablesAdminControles uid={uid} vueltaId={vueltaId} trayectoId={trayectoId} />
       )}
@@ -536,11 +628,11 @@ function GastosVariables({
         {activos.map((g) => (
           <li key={g.id} className="flex flex-col gap-1 neu-pozo p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="font-medium">
+              <span className="font-semibold">
                 {ETIQUETA_GASTO[g.tipo]}
-                {detalleGasto(g) && <span className="font-normal text-texto-suave"> · {detalleGasto(g)}</span>}
+                {detalleGasto(g) && <span className="font-medium text-texto-suave"> · {detalleGasto(g)}</span>}
               </span>
-              <span className="monto">{formatearPesos(g.monto)}</span>
+              <span className="monto font-semibold">{formatearPesos(g.monto)}</span>
             </div>
             {g.fotoUrl && (
               <a href={g.fotoUrl} target="_blank" rel="noopener noreferrer" className="w-fit">
@@ -568,7 +660,7 @@ function GastosVariables({
           </ul>
         </details>
       )}
-    </div>
+    </Acordeon>
   );
 }
 
