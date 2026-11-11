@@ -79,4 +79,39 @@ describe("validaciones", () => {
     expect(esquemaGastoVariable.safeParse(base).success).toBe(false);
     expect(esquemaGastoVariable.safeParse({ ...base, terminal: "pitalito" }).success).toBe(true);
   });
+
+  it("admin schemas: valida entradas de planilla, trayecto, polilla, encomienda y gasto", async () => {
+    const {
+      esquemaIniciarTrayectoAdmin,
+      esquemaPlanillaAdmin,
+      esquemaPasajeroAdmin,
+      esquemaEncomiendaAdmin,
+      esquemaGastoVariableAdmin,
+    } = await import("./admin");
+
+    expect(esquemaIniciarTrayectoAdmin.safeParse({ vuelta_id: id, sentido: "ida" }).success).toBe(true);
+    expect(esquemaPlanillaAdmin.safeParse({ trayecto_id, terminal: "florencia", emitida: true, neto: 250000 }).success).toBe(true);
+    expect(esquemaPasajeroAdmin.safeParse({
+      trayecto_id,
+      tramo_id: "ida-1",
+      destino: "cali",
+      monto_cobrado: 50000,
+      facturado: true,
+      terminal_facturacion: "pitalito",
+      monto_facturado: 30000,
+      destino_sobrante: "polilla",
+    }).success).toBe(true);
+    expect(esquemaEncomiendaAdmin.safeParse({
+      trayecto_id,
+      recibida_en_terminal: "florencia",
+      destino: "cali",
+      monto: 25000,
+    }).success).toBe(true);
+    expect(esquemaGastoVariableAdmin.safeParse({
+      vuelta_id: id,
+      tipo: "acpm",
+      monto: 150000,
+      galones: 12,
+    }).success).toBe(true);
+  });
 });

@@ -17,7 +17,7 @@ import { exigirRol } from "@/lib/auth/sesion";
 import { formatearPesos } from "@/lib/dominio/dinero";
 import { formatearFechaHora } from "@/lib/dominio/fechas";
 import type { TerminalConPlanilla } from "@/lib/dominio/planillas";
-import { buscarTramo, TERMINALES } from "@/lib/dominio/ruta";
+import { buscarTramo, TERMINALES, type Sentido } from "@/lib/dominio/ruta";
 import { accionesAdmin } from "@/lib/dominio/vuelta";
 import { ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaCorta } from "../etiquetas";
 import { FinalizarVuelta } from "../finalizar";
@@ -28,8 +28,12 @@ import {
   EditarVuelta,
   EliminarDePolilla,
   EliminarGasto,
+  GastosVariablesAdminControles,
+  IniciarTrayecto,
+  PolillaAdminControles,
   ReabrirCerrada,
   ReabrirVuelta,
+  RegistrarPlanilla,
 } from "./controles";
 
 export const metadata = { title: "Detalle de vuelta" };
@@ -39,12 +43,13 @@ export const metadata = { title: "Detalle de vuelta" };
 const tarjeta = "flex flex-col gap-3 neu-tarjeta p-4";
 
 export default async function DetalleVuelta({ params }: PageProps<"/admin/vueltas/[id]">) {
-  await exigirRol("admin");
+  const perfil = await exigirRol("admin");
   const { id } = await params;
   const [vuelta, conductores] = await Promise.all([detalleVuelta(id), listarConductores()]);
   if (!vuelta) notFound();
 
   const permitido = accionesAdmin(vuelta.estado);
+  const trayectoId = vuelta.regreso?.id ?? vuelta.ida?.id ?? null;
 
   return (
     <section className="flex flex-col gap-6">
@@ -99,18 +104,30 @@ export default async function DetalleVuelta({ params }: PageProps<"/admin/vuelta
         {vuelta.tipo === "completa" && (
           <GastosFijos fijos={vuelta.gastosFijos} editable={permitido.editar} />
         )}
-        <GastosVariables gastos={vuelta.gastosVariables} editable={permitido.editar} varada={vuelta.tipo === "varada"} />
+        <GastosVariables
+          gastos={vuelta.gastosVariables}
+          vueltaId={vuelta.id}
+          trayectoId={trayectoId}
+          uid={perfil.id}
+          editable={permitido.editar}
+          varada={vuelta.tipo === "varada"}
+        />
       </div>
       <CierresReemplazados cierres={vuelta.cierresReemplazados} />
 
       {vuelta.faltan.map((sentido) => (
-        <p key={sentido} className={`${tarjeta} text-aviso`}>
-          {sentido === "ida" ? "La ida" : "El regreso"} no se ha registrado.
-        </p>
+        <div key={sentido} className={`${tarjeta} flex flex-col gap-2`}>
+          <p className="text-aviso">
+            {sentido === "ida" ? "La ida" : "El regreso"} no se ha registrado.
+          </p>
+          {permitido.editar && (
+            <IniciarTrayecto vueltaId={vuelta.id} sentido={sentido} />
+          )}
+        </div>
       ))}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        {vuelta.ida && <Trayecto trayecto={vuelta.ida} editable={permitido.editar} />}
-        {vuelta.regreso && <Trayecto trayecto={vuelta.regreso} editable={permitido.editar} />}
+        {vuelta.ida && <Trayecto trayecto={vuelta.ida} editable={permitido.editar} uid={perfil.id} />}
+        {vuelta.regreso && <Trayecto trayecto={vuelta.regreso} editable={permitido.editar} uid={perfil.id} />}
       </div>
     </section>
   );
@@ -125,7 +142,7 @@ function Dato({ termino, valor }: { termino: string; valor: string }) {
   );
 }
 
-function Trayecto({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editable: boolean }) {
+function Trayecto({ trayecto: t, editable, uid }: { trayecto: TrayectoDetalle; editable: boolean; uid: string }) {
   return (
     <div className={tarjeta}>
       <div className="flex flex-col gap-0.5">
@@ -141,7 +158,14 @@ function Trayecto({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editab
 
       <ul className="flex flex-col gap-2">
         {t.terminales.map((terminal) => (
-          <Terminal key={terminal.codigo} terminal={terminal} editable={editable} />
+          <Terminal
+            key={terminal.codigo}
+            terminal={terminal}
+            trayectoId={t.id}
+            sentido={t.sentido}
+            editable={editable}
+            uid={uid}
+          />
         ))}
       </ul>
 
@@ -172,7 +196,19 @@ function resumenPlanilla(p: PlanillaDetalle): string {
   return [`Neto ${formatearPesos(p.neto ?? 0)}`, ...extra].join(" · ");
 }
 
-function Terminal({ terminal, editable }: { terminal: TerminalConPlanilla<PlanillaDetalle>; editable: boolean }) {
+function Terminal({
+  terminal,
+  trayectoId,
+  sentido,
+  editable,
+  uid,
+}: {
+  terminal: TerminalConPlanilla<PlanillaDetalle>;
+  trayectoId: string;
+  sentido: Sentido;
+  editable: boolean;
+  uid: string;
+}) {
   const p = terminal.planilla;
   return (
     <li className="flex flex-col gap-1 neu-pozo p-3">
@@ -184,6 +220,10 @@ function Terminal({ terminal, editable }: { terminal: TerminalConPlanilla<Planil
           <span className="monto text-sm font-semibold">{formatearPesos(p.neto ?? 0)}</span>
         )}
       </div>
+
+      {terminal.estado === "pendiente" && editable && (
+        <RegistrarPlanilla uid={uid} trayectoId={trayectoId} terminal={terminal.codigo} sentido={sentido} />
+      )}
 
       {p && (
         <>
@@ -204,7 +244,7 @@ function Terminal({ terminal, editable }: { terminal: TerminalConPlanilla<Planil
             </a>
           )}
           <Autoria planilla={p} />
-          {editable && <AccionesPlanilla planilla={p} />}
+          {editable && <AccionesPlanilla planilla={p} uid={uid} />}
         </>
       )}
     </li>
@@ -262,6 +302,9 @@ function Polilla({ trayecto: t, editable }: { trayecto: TrayectoDetalle; editabl
   return (
     <div className="flex flex-col gap-2 border-t border-borde pt-3">
       <h3 className="font-semibold">Polilla</h3>
+      {editable && (
+        <PolillaAdminControles trayectoId={t.id} sentido={t.sentido} />
+      )}
       {pasajeros.length === 0 && encomiendas.length === 0 && (
         <p className="text-sm text-texto-suave">Sin pasajeros de vía ni encomiendas.</p>
       )}
@@ -464,12 +507,29 @@ function detalleGasto(g: GastoVariableDetalle): string {
     .join(" · ");
 }
 
-function GastosVariables({ gastos, editable, varada }: { gastos: GastoVariableDetalle[]; editable: boolean; varada: boolean }) {
+function GastosVariables({
+  gastos,
+  vueltaId,
+  trayectoId,
+  uid,
+  editable,
+  varada,
+}: {
+  gastos: GastoVariableDetalle[];
+  vueltaId: string;
+  trayectoId: string | null;
+  uid: string;
+  editable: boolean;
+  varada: boolean;
+}) {
   const activos = gastos.filter((g) => g.estado === "activo");
   const eliminados = gastos.filter((g) => g.estado === "anulado");
   return (
     <div className={tarjeta}>
       <h2 className="text-lg font-semibold">Gastos variables</h2>
+      {editable && (
+        <GastosVariablesAdminControles uid={uid} vueltaId={vueltaId} trayectoId={trayectoId} />
+      )}
       {varada && activos.length > 0 && <p className="text-sm text-aviso">Varada: estos gastos no cuentan, la vuelta queda en $0.</p>}
       {activos.length === 0 && <p className="text-sm text-texto-suave">Sin gastos variables.</p>}
       <ul className="flex flex-col gap-2">

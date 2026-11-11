@@ -32,8 +32,73 @@ export const esquemaCorreccionPlanilla = z
     numero: campos.numero,
     pasajeros: campos.pasajeros,
     motivo_sin_planilla: campos.motivo_sin_planilla,
+    foto_path: campos.foto_path.optional(),
   })
   .strict();
+
+export const esquemaIniciarTrayectoAdmin = z
+  .object({
+    vuelta_id: z.uuid(),
+    sentido: z.enum(["ida", "regreso"]),
+  })
+  .strict();
+
+export const esquemaPlanillaAdmin = z
+  .object({
+    trayecto_id: z.uuid(),
+    terminal: z.enum(["florencia", "pitalito", "popayan", "cali"]),
+    emitida: z.boolean(),
+    neto: campos.neto,
+    numero: campos.numero,
+    pasajeros: campos.pasajeros,
+    motivo_sin_planilla: campos.motivo_sin_planilla,
+    foto_path: campos.foto_path.optional(),
+  })
+  .strict();
+
+export const esquemaPasajeroAdmin = z
+  .object({
+    trayecto_id: z.uuid(),
+    tramo_id: z.enum(["ida-1", "ida-2", "ida-3", "regreso-1", "regreso-2", "regreso-3"]),
+    destino: z.enum(["florencia", "pitalito", "popayan", "cali"]),
+    monto_cobrado: z.number().int().min(1).max(2_000_000),
+    facturado: z.boolean(),
+    terminal_facturacion: z.enum(["florencia", "pitalito", "popayan", "cali"]).nullish(),
+    monto_facturado: z.number().int().min(0).max(2_000_000),
+    destino_sobrante: z.enum(["polilla", "conductor"]).default("polilla"),
+  })
+  .strict();
+
+export const esquemaEncomiendaAdmin = z
+  .object({
+    trayecto_id: z.uuid(),
+    recibida_en_terminal: z.enum(["florencia", "pitalito", "popayan", "cali"]).nullish(),
+    recibida_en_tramo: z.enum(["ida-1", "ida-2", "ida-3", "regreso-1", "regreso-2", "regreso-3"]).nullish(),
+    destino: z.enum(["florencia", "pitalito", "popayan", "cali"]),
+    descripcion: z.string().trim().max(200).nullish(),
+    monto: z.number().int().min(1).max(5_000_000),
+  })
+  .strict();
+
+export const esquemaGastoVariableAdmin = z
+  .object({
+    vuelta_id: z.uuid(),
+    trayecto_id: z.uuid().nullish(),
+    tipo: z.enum(["acpm", "liga", "extra", "arreglo"]),
+    descripcion: z.string().trim().max(200).nullish(),
+    monto: z.number().int().min(1).max(10_000_000),
+    terminal: z.enum(["florencia", "pitalito", "popayan", "cali"]).nullish(),
+    galones: z.number().positive().max(9999).nullish(),
+    lugar: z.string().trim().max(120).nullish(),
+    foto_path: campos.foto_path.optional(),
+  })
+  .strict();
+
+export type IniciarTrayectoAdmin = z.infer<typeof esquemaIniciarTrayectoAdmin>;
+export type PlanillaAdminEntrada = z.infer<typeof esquemaPlanillaAdmin>;
+export type PasajeroAdminEntrada = z.infer<typeof esquemaPasajeroAdmin>;
+export type EncomiendaAdminEntrada = z.infer<typeof esquemaEncomiendaAdmin>;
+export type GastoVariableAdminEntrada = z.infer<typeof esquemaGastoVariableAdmin>;
 
 /** Conductores y tipo de la vuelta. */
 export const esquemaDatosVuelta = z

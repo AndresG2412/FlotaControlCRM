@@ -10,15 +10,31 @@ import {
   esquemaCierreVuelta,
   esquemaCorreccionPlanilla,
   esquemaDatosVuelta,
+  esquemaEncomiendaAdmin,
+  esquemaGastoVariableAdmin,
   esquemaIdVuelta,
+  esquemaIniciarTrayectoAdmin,
+  esquemaPasajeroAdmin,
+  esquemaPlanillaAdmin,
   esquemaReabrirCerrada,
   type AjusteGastoFijo,
   type CierreVuelta,
   type CorreccionPlanilla,
   type DatosVuelta,
+  type EncomiendaAdminEntrada,
+  type GastoVariableAdminEntrada,
+  type IniciarTrayectoAdmin,
+  type PasajeroAdminEntrada,
+  type PlanillaAdminEntrada,
   type ReabrirCerrada,
 } from "@/lib/validaciones/admin";
-import { esquemaAnulacion, esquemaPlanilla } from "@/lib/validaciones/registros";
+import {
+  esquemaAnulacion,
+  esquemaEncomienda,
+  esquemaGastoVariable,
+  esquemaPlanilla,
+  esquemaPolilla,
+} from "@/lib/validaciones/registros";
 
 // Acciones del admin sobre vueltas y planillas. Cada una verifica el rol, valida
 // con Zod y escribe con la sesión del admin (la RLS y los checks son la última
@@ -74,7 +90,7 @@ export async function corregirPlanilla(entrada: CorreccionPlanilla): Promise<Res
     trayecto_id: actual.trayecto_id,
     sentido: actual.trayectos.sentido,
     terminal: actual.terminal,
-    foto_path: actual.foto_path,
+    foto_path: c.foto_path !== undefined ? c.foto_path : actual.foto_path,
     emitida: c.emitida,
     neto: c.emitida ? c.neto : null,
     numero: c.emitida ? c.numero || null : null,
@@ -92,6 +108,7 @@ export async function corregirPlanilla(entrada: CorreccionPlanilla): Promise<Res
       numero: p.numero ?? null,
       pasajeros: p.pasajeros ?? null,
       motivo_sin_planilla: p.motivo_sin_planilla ?? null,
+      foto_path: p.foto_path ?? null,
     })
     .eq("id", p.id)
     .eq("estado", "activa")
@@ -393,4 +410,254 @@ export async function reabrirVueltaCerrada(entrada: ReabrirCerrada): Promise<Res
 
   revalidar(datos.data.id);
   return { error: null };
+}
+
+/** Inicia un trayecto (ida o regreso) dentro de la vuelta. */
+export async function iniciarTrayectoAdmin(entrada: IniciarTrayectoAdmin): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaIniciarTrayectoAdmin.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const bloqueo = await vueltaEditable(supabase, datos.data.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const { data: existente } = await supabase
+    .from("trayectos")
+    .select("id")
+    .eq("vuelta_id", datos.data.vuelta_id)
+    .eq("sentido", datos.data.sentido)
+    .maybeSingle();
+  if (existente) return { error: `El trayecto de ${datos.data.sentido} ya existe` };
+
+  const id = crypto.randomUUID();
+  const hora = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Bogota",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+
+  const { error } = await supabase.from("trayectos").insert({
+    id,
+    vuelta_id: datos.data.vuelta_id,
+    sentido: datos.data.sentido,
+    fecha: hoyEnBogota(),
+    hora_salida: hora,
+    ocurrido_en: new Date().toISOString(),
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: "No se pudo iniciar el trayecto" };
+
+  revalidar(datos.data.vuelta_id);
+  return { error: null, id };
+}
+
+/** Registra una planilla nueva en una terminal de un trayecto. */
+export async function registrarPlanillaAdmin(entrada: PlanillaAdminEntrada): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaPlanillaAdmin.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: trayecto } = await supabase
+    .from("trayectos")
+    .select("id, vuelta_id, sentido")
+    .eq("id", datos.data.trayecto_id)
+    .maybeSingle();
+  if (!trayecto) return { error: "El trayecto no existe" };
+
+  const bloqueo = await vueltaEditable(supabase, trayecto.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const id = crypto.randomUUID();
+  const ocurrido_en = new Date().toISOString();
+
+  const completa = esquemaPlanilla.safeParse({
+    id,
+    ocurrido_en,
+    trayecto_id: trayecto.id,
+    sentido: trayecto.sentido,
+    terminal: datos.data.terminal,
+    emitida: datos.data.emitida,
+    neto: datos.data.emitida ? datos.data.neto : null,
+    numero: datos.data.emitida ? datos.data.numero || null : null,
+    pasajeros: datos.data.emitida ? datos.data.pasajeros : null,
+    motivo_sin_planilla: datos.data.emitida ? null : datos.data.motivo_sin_planilla || null,
+    foto_path: datos.data.foto_path ?? null,
+  });
+  if (!completa.success) return { error: primerMensaje(completa.error.issues) };
+
+  const p = completa.data;
+  const { error } = await supabase.from("planillas").insert({
+    id: p.id,
+    trayecto_id: p.trayecto_id,
+    terminal: p.terminal,
+    emitida: p.emitida,
+    neto: p.neto ?? null,
+    numero: p.numero ?? null,
+    pasajeros: p.pasajeros ?? null,
+    motivo_sin_planilla: p.motivo_sin_planilla ?? null,
+    foto_path: p.foto_path ?? null,
+    ocurrido_en: p.ocurrido_en,
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: "No se pudo guardar la planilla" };
+
+  revalidar(trayecto.vuelta_id);
+  return { error: null, id: p.id };
+}
+
+/** Registra un pasajero de vía en un trayecto. */
+export async function guardarPasajeroAdmin(entrada: PasajeroAdminEntrada): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaPasajeroAdmin.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: trayecto } = await supabase
+    .from("trayectos")
+    .select("id, vuelta_id, sentido")
+    .eq("id", datos.data.trayecto_id)
+    .maybeSingle();
+  if (!trayecto) return { error: "El trayecto no existe" };
+
+  const bloqueo = await vueltaEditable(supabase, trayecto.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const id = crypto.randomUUID();
+  const ocurrido_en = new Date().toISOString();
+
+  const completa = esquemaPolilla.safeParse({
+    id,
+    ocurrido_en,
+    trayecto_id: trayecto.id,
+    sentido: trayecto.sentido,
+    tramo_id: datos.data.tramo_id,
+    destino: datos.data.destino,
+    monto_cobrado: datos.data.monto_cobrado,
+    facturado: datos.data.facturado,
+    terminal_facturacion: datos.data.terminal_facturacion ?? null,
+    monto_facturado: datos.data.monto_facturado,
+    destino_sobrante: datos.data.destino_sobrante,
+  });
+  if (!completa.success) return { error: primerMensaje(completa.error.issues) };
+
+  const p = completa.data;
+  const { error } = await supabase.from("polilla_pasajeros").insert({
+    id: p.id,
+    trayecto_id: p.trayecto_id,
+    tramo_id: p.tramo_id,
+    destino: p.destino,
+    monto_cobrado: p.monto_cobrado,
+    facturado: p.facturado,
+    terminal_facturacion: p.terminal_facturacion ?? null,
+    monto_facturado: p.monto_facturado,
+    destino_sobrante: p.destino_sobrante,
+    ocurrido_en: p.ocurrido_en,
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: "No se pudo guardar el pasajero" };
+
+  revalidar(trayecto.vuelta_id);
+  return { error: null, id: p.id };
+}
+
+/** Registra una encomienda en un trayecto. */
+export async function guardarEncomiendaAdmin(entrada: EncomiendaAdminEntrada): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaEncomiendaAdmin.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const { data: trayecto } = await supabase
+    .from("trayectos")
+    .select("id, vuelta_id, sentido")
+    .eq("id", datos.data.trayecto_id)
+    .maybeSingle();
+  if (!trayecto) return { error: "El trayecto no existe" };
+
+  const bloqueo = await vueltaEditable(supabase, trayecto.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const id = crypto.randomUUID();
+  const ocurrido_en = new Date().toISOString();
+
+  const completa = esquemaEncomienda.safeParse({
+    id,
+    ocurrido_en,
+    trayecto_id: trayecto.id,
+    sentido: trayecto.sentido,
+    recibida_en_terminal: datos.data.recibida_en_terminal ?? null,
+    recibida_en_tramo: datos.data.recibida_en_tramo ?? null,
+    destino: datos.data.destino,
+    descripcion: datos.data.descripcion ?? null,
+    monto: datos.data.monto,
+  });
+  if (!completa.success) return { error: primerMensaje(completa.error.issues) };
+
+  const e = completa.data;
+  const { error } = await supabase.from("encomiendas").insert({
+    id: e.id,
+    trayecto_id: e.trayecto_id,
+    recibida_en_terminal: e.recibida_en_terminal ?? null,
+    recibida_en_tramo: e.recibida_en_tramo ?? null,
+    destino: e.destino,
+    descripcion: e.descripcion ?? null,
+    monto: e.monto,
+    ocurrido_en: e.ocurrido_en,
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: "No se pudo guardar la encomienda" };
+
+  revalidar(trayecto.vuelta_id);
+  return { error: null, id: e.id };
+}
+
+/** Registra un gasto variable en la vuelta. */
+export async function guardarGastoAdmin(entrada: GastoVariableAdminEntrada): Promise<Resultado & { id?: string }> {
+  const perfil = await exigirRol("admin");
+  const datos = esquemaGastoVariableAdmin.safeParse(entrada);
+  if (!datos.success) return { error: primerMensaje(datos.error.issues) };
+
+  const supabase = await crearClienteServidor();
+  const bloqueo = await vueltaEditable(supabase, datos.data.vuelta_id);
+  if (bloqueo) return { error: bloqueo };
+
+  const id = crypto.randomUUID();
+  const ocurrido_en = new Date().toISOString();
+
+  const completa = esquemaGastoVariable.safeParse({
+    id,
+    ocurrido_en,
+    vuelta_id: datos.data.vuelta_id,
+    trayecto_id: datos.data.trayecto_id ?? null,
+    tipo: datos.data.tipo,
+    descripcion: datos.data.descripcion ?? null,
+    monto: datos.data.monto,
+    terminal: datos.data.terminal ?? null,
+    galones: datos.data.galones ?? null,
+    lugar: datos.data.lugar ?? null,
+    foto_path: datos.data.foto_path ?? null,
+  });
+  if (!completa.success) return { error: primerMensaje(completa.error.issues) };
+
+  const g = completa.data;
+  const { error } = await supabase.from("gastos_variables").insert({
+    id: g.id,
+    vuelta_id: g.vuelta_id,
+    trayecto_id: g.trayecto_id ?? null,
+    tipo: g.tipo,
+    descripcion: g.descripcion ?? null,
+    monto: g.monto,
+    terminal: g.terminal ?? null,
+    galones: g.galones ?? null,
+    lugar: g.lugar ?? null,
+    foto_path: g.foto_path ?? null,
+    ocurrido_en: g.ocurrido_en,
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: "No se pudo guardar el gasto" };
+
+  revalidar(g.vuelta_id);
+  return { error: null, id: g.id };
 }

@@ -8,7 +8,8 @@ import { destinosDeEncomienda, terminalDeFacturacion } from "@/lib/dominio/polil
 import { buscarTramo, destinosPosibles, terminalesConPlanilla } from "@/lib/dominio/ruta";
 
 const terminal = z.enum(["florencia", "pitalito", "popayan", "cali"]);
-const tramo = z.enum(["ida-1", "ida-2", "ida-3", "regreso-1", "regreso-2", "regreso-3"]);
+export const tramo = z.enum(["ida-1", "ida-2", "ida-3", "regreso-1", "regreso-2", "regreso-3"]);
+export type CodigoTramo = z.infer<typeof tramo>;
 const sentido = z.enum(["ida", "regreso"]);
 
 const pesos = (max: number) =>
